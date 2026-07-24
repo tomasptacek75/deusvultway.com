@@ -20,6 +20,18 @@ disku). Účel: gate před produkčním deployem — viz `deploy_gated.py` v roo
   založených trenérem.
 - `messaging-and-notifications.spec.js` — chat trenér↔klient + notifikace.
 - `i18n.spec.js` — přepínač CS/EN.
+- `scheduling-conflict.spec.js` — dialog s varováním při kolizi dvou tréninků (`window.confirm`),
+  zrušení nesmí trénink založit, potvrzení musí.
+- `group-sessions.spec.js` — dva klienti ve stejný čas se v denním přehledu sloučí do jednoho
+  řádku (`groupByTime` v `CalendarView.jsx`).
+- `offline-queue.spec.js` — zápis série bez signálu se uloží do localStorage fronty a odešle se
+  po obnovení připojení (`offlineQueue.js`).
+- `landing-contact-form.spec.js` — kontaktní formulář na landing page → poptávka u trenéra.
+- `client-history-and-prs.spec.js` — osobní rekordy (odhad 1RM) a dokončené tréninky na
+  `/client/history`.
+- `workout-comments-and-gdpr-export.spec.js` — API-only testy (bez UI): `GET/POST
+  /workouts/{id}/comments` a `GET /me/export` existují v backendu, ale zatím na ně nenavazuje
+  žádná obrazovka v `frontend/src` — dokud se UI nepostaví, ověřuje se jen backendový kontrakt.
 
 Ostatní testy se přihlašují rychle přes API + localStorage (`helpers/auth.js`), ne klikáním
 přes `/login` — jen `smoke.spec.js` klikací flow testuje samostatně.
@@ -49,8 +61,12 @@ report.
   paralelní běh by riskoval kolize (dva testy sáhnou na stejného "prvního klienta" najednou).
 - **Úklid po sobě** — všechna vytvořená data nesou prefix `E2E` a časovou značku
   (`helpers/testData.js#uniqueName`) a testy je na konci mažou přes API. Výjimka: nutrition
-  plans a subscriptions nemají DELETE endpoint (mimo rozsah POC), takže se v testovací DB
-  pomalu hromadí — neškodí (test prostředí nikdy nesdílí data s produkcí, viz CLAUDE.md), ale
-  stojí za zvážení přidat DELETE endpoint, kdyby to začalo vadit.
+  plans, subscriptions, inquiries a goals nemají DELETE endpoint (mimo rozsah POC), takže se
+  v testovací DB pomalu hromadí — neškodí (test prostředí nikdy nesdílí data s produkcí, viz
+  CLAUDE.md), ale stojí za zvážení přidat DELETE endpointy, kdyby to začalo vadit. Pozor: kde
+  se kvůli tomu opakovaně objevuje nejednoznačný text (např. víc karet se stejnou hodnotou
+  "2500 kcal"), assertions musí scopovat na konkrétní kartu podle unikátního titulku/jména
+  (`div.rounded-lg.border` + `.filter({ hasText })`), ne na obecný `getByText` — jinak po
+  několika bězích spadnou na strict-mode chybě (viz historie commitů).
 - **Testovací prostředí je jednosměrné** — tahle sada se pouští jen proti `test.bloodandguts.cz`
   nebo lokálnímu dev serveru, nikdy proti produkci.

@@ -65,8 +65,14 @@ test.describe('Trenér — detail klienta', () => {
     await page.getByPlaceholder(/Kalorie\/den|Calories\/day/).fill('2500')
     await page.getByRole('button', { name: /Uložit výživový plán|Save nutrition plan/ }).click()
 
-    await expect(page.getByText(title)).toBeVisible()
-    await expect(page.getByText('2500 kcal')).toBeVisible()
+    // Karty výživových plánů se nikdy nemažou (žádný DELETE endpoint) a "2500 kcal" není
+    // unikátní text — po opakovaných bězích by na stránce mohlo být víc karet se stejnou
+    // hodnotou kalorií. Scoping přes třídu konkrétní karty (viz ClientDetail.jsx) místo
+    // first()/last() na "div" obecně, protože ten by narazil buď na obalující .space-y-3
+    // wrapper všech karet, nebo na vnitřní div s pouhým titulkem (bez kcal).
+    const planCard = page.locator('div.rounded-lg.border').filter({ hasText: title })
+    await expect(planCard).toBeVisible()
+    await expect(planCard).toContainText('2500 kcal')
   })
 
   test('záložka 1RM: zaznamenání nové hodnoty', async ({ page, request }) => {

@@ -62,12 +62,19 @@ test.describe('Klient — progres, výživa, platby a fotky', () => {
       await loginViaStorage(page, request, client.id)
 
       await page.goto('/client/nutrition')
-      await expect(page.getByText(nutritionTitle)).toBeVisible()
-      await expect(page.getByText('2200 kcal')).toBeVisible()
+      // nutrition-plans nemá DELETE (viz komentář ve finally níže), takže po opakovaných
+      // bězích může existovat víc karet se stejnou hodnotou kalorií — scoping na konkrétní
+      // kartu podle unikátního titulku místo obecného getByText('2200 kcal').
+      const planCard = page.locator('div.rounded-lg.border').filter({ hasText: nutritionTitle })
+      await expect(planCard).toBeVisible()
+      await expect(planCard).toContainText('2200 kcal')
 
       await page.goto('/client/billing')
-      await expect(page.getByText(subscription.plan_name)).toBeVisible()
-      await expect(page.getByText('990 Kč')).toBeVisible()
+      // Stejný důvod jako u výživového plánu výše — subscriptions se nemažou a "990 Kč"
+      // není unikátní, proto scoping na konkrétní kartu podle unikátního plan_name.
+      const subCard = page.locator('div.rounded-lg.border').filter({ hasText: subscription.plan_name })
+      await expect(subCard).toBeVisible()
+      await expect(subCard).toContainText('990 Kč')
     } finally {
       // nutrition-plans a subscriptions nemají DELETE endpoint (POC rozsah) — testovací
       // prostředí je oddělené od produkce (viz CLAUDE.md), takže tahle drobná akumulace dat

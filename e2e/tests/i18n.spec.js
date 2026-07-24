@@ -11,14 +11,17 @@ test.describe('Přepínač jazyka EN/CS', () => {
 
     await expect(page.getByRole('link', { name: 'Klienti' })).toBeVisible()
 
-    await page.getByLabel(/Switch to English/i).click()
+    // AppShell renderuje přepínač jazyka dvakrát (desktop nav + mobilní nav, jeden je vždy
+    // jen CSS-skrytý přes hidden md:flex/md:hidden, ne odstraněný z DOM) — getByLabel by
+    // narazil na strict-mode chybu (2 shody), proto :visible na skutečně zobrazené tlačítko.
+    await page.locator('[aria-label="Switch to English"]:visible').click()
     await expect(page.getByRole('link', { name: 'Clients' })).toBeVisible()
 
     await page.reload()
     await expect(page.getByRole('link', { name: 'Clients' })).toBeVisible()
 
     // vrátit zpět na češtinu, ať dál nezavádí ostatní testy v sadě (ty čekají české texty)
-    await page.getByLabel(/Přepnout na češtinu/i).click()
+    await page.locator('[aria-label="Přepnout na češtinu"]:visible').click()
     await expect(page.getByRole('link', { name: 'Klienti' })).toBeVisible()
   })
 })

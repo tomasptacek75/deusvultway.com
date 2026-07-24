@@ -39,7 +39,12 @@ test.describe('Trenér — kalendář', () => {
       await loginViaStorage(page, request, trainer.id)
       await page.goto('/trainer/calendar') // výchozí režim je "Den" s kotvou na dnešek
 
-      const card = page.locator('a, div').filter({ hasText: title }).last()
+      // .filter({ hasText }) matchne každý ancestor v řetězci, co text obsahuje — od
+      // #root (celá appka) až po nejvnitřnější div s titulkem — takže "a, div" + .first()/.last()
+      // je nespolehlivé (buď #root, nebo jen titulek bez času). Netříděný jednoklientský trénink
+      // (bez group session) se v TrainerCalendar.jsx renderuje jako jediný <Link>/<a> bez
+      // vnořených <a> uvnitř, takže scoping jen na 'a' dá přesně jednu shodu — celou kartu.
+      const card = page.locator('a').filter({ hasText: title })
       await expect(card).toBeVisible()
       await expect(card).toContainText('06:00')
 

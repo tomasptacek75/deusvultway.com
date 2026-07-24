@@ -36,8 +36,14 @@ test.describe('Zprávy a notifikace', () => {
 
       // Tělo notifikace se skládá server-side vždy česky (viz CLAUDE.md — seedovaný/generovaný
       // obsah zůstává česky bez ohledu na EN/CS přepínač) a obsahuje jméno odesílatele.
-      await page.getByLabel(/Notifikace|Notifications/).click()
-      await expect(page.getByText(`${client.display_name} ti napsal(a) zprávu`)).toBeVisible()
+      // AppShell renderuje zvoneček dvakrát (desktop + mobilní nav, jeden je jen CSS-skrytý),
+      // takže getByLabel by narazil na strict-mode chybu — :visible cílí na ten zobrazený.
+      await page.locator('[aria-label="Notifikace"]:visible, [aria-label="Notifications"]:visible').click()
+      // Text notifikace nemá unikátní identifikátor (vždy stejné "X ti napsal(a) zprávu") a
+      // notifikace se nikdy nemažou (jen označují jako přečtené) — opakované běhy testu proti
+      // stejné DB tak nechají hromadit duplicity. .first() stačí, ověřuje jen že notifikace
+      // vznikla, ne kolikátá v pořadí je.
+      await expect(page.getByText(`${client.display_name} ti napsal(a) zprávu`).first()).toBeVisible()
     } finally {
       await clientContext.close()
     }

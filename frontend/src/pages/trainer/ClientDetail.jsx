@@ -5,6 +5,7 @@ import { apiClient } from '../../api/client'
 import Chart from '../../components/Chart'
 import AvatarThumb from '../../components/AvatarThumb'
 import TimeSelect from '../../components/TimeSelect'
+import CommentThread from '../../components/CommentThread'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { findScheduleConflict } from '../../utils/schedule'
 import { dayOfWeek, formatDateShort } from '../../utils/date'
@@ -334,12 +335,23 @@ function WorkoutEditor({ workoutId, exercises }) {
   const [detail, setDetail] = useState(null)
   const [exerciseId, setExerciseId] = useState('')
   const [sets, setSets] = useState({ target_sets: 3, target_reps: 10, target_weight_kg: '' })
+  const [comments, setComments] = useState([])
 
   function load() {
     apiClient.get(`/workouts/${workoutId}`).then((r) => setDetail(r.data))
   }
 
+  function loadComments() {
+    apiClient.get(`/workouts/${workoutId}/comments`).then((r) => setComments(r.data))
+  }
+
   useEffect(load, [workoutId])
+  useEffect(loadComments, [workoutId])
+
+  async function submitComment(body) {
+    await apiClient.post(`/workouts/${workoutId}/comments`, { body })
+    loadComments()
+  }
 
   async function addExercise(e) {
     e.preventDefault()
@@ -428,6 +440,12 @@ function WorkoutEditor({ workoutId, exercises }) {
           {t('Přidat cvik', 'Add exercise')}
         </button>
       </form>
+
+      <CommentThread
+        comments={comments}
+        onSubmit={submitComment}
+        placeholder={t('Napiš komentář k tréninku…', 'Write a comment about this workout…')}
+      />
     </div>
   )
 }

@@ -29,9 +29,10 @@ disku). Účel: gate před produkčním deployem — viz `deploy_gated.py` v roo
 - `landing-contact-form.spec.js` — kontaktní formulář na landing page → poptávka u trenéra.
 - `client-history-and-prs.spec.js` — osobní rekordy (odhad 1RM) a dokončené tréninky na
   `/client/history`.
-- `workout-comments-and-gdpr-export.spec.js` — API-only testy (bez UI): `GET/POST
-  /workouts/{id}/comments` a `GET /me/export` existují v backendu, ale zatím na ně nenavazuje
-  žádná obrazovka v `frontend/src` — dokud se UI nepostaví, ověřuje se jen backendový kontrakt.
+- `workout-comments-and-gdpr-export.spec.js` — komentáře k tréninku (na rozdíl od komentářů ke
+  cviku) a tlačítko "Stáhnout moje data (GDPR export)" na obou dashboardech; UI pro tohle dvoje
+  chybělo do 2026-07-24 přesto, že backend endpointy existovaly odjakživa — dostavěno a otestováno
+  ve stejný den.
 
 Ostatní testy se přihlašují rychle přes API + localStorage (`helpers/auth.js`), ne klikáním
 přes `/login` — jen `smoke.spec.js` klikací flow testuje samostatně.

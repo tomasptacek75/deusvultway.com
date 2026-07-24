@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, ArrowRight, Activity, Search } from 'lucide-react'
+import { Users, ArrowRight, Activity, Search, Download } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import { useLanguage } from '../../i18n/LanguageContext'
 import AvatarThumb from '../../components/AvatarThumb'
+import { downloadMyDataExport } from '../../utils/gdprExport'
 
 function timeAgo(iso, t) {
   if (!iso) return t('zatím žádná aktivita', 'no activity yet')
@@ -87,6 +88,13 @@ export default function TrainerDashboard() {
         ))}
         {clients.length === 0 && <p className="text-neutral-500">{t('Zatím žádní klienti.', 'No clients yet.')}</p>}
       </div>
+
+      <button
+        onClick={downloadMyDataExport}
+        className="flex items-center gap-1.5 text-xs text-neutral-600 hover:text-neutral-400 mt-10"
+      >
+        <Download size={13} /> {t('Stáhnout moje data (GDPR export)', 'Download my data (GDPR export)')}
+      </button>
     </div>
   )
 }

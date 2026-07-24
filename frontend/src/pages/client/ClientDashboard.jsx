@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, ArrowRight, Dumbbell, CheckCircle2, Clock, MapPin } from 'lucide-react'
+import { CalendarDays, ArrowRight, Dumbbell, CheckCircle2, Clock, MapPin, Download } from 'lucide-react'
 import { apiClient, getUser } from '../../api/client'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { vocative } from '../../utils/vocative'
 import { dayOfWeek, formatDateShort } from '../../utils/date'
+import { downloadMyDataExport } from '../../utils/gdprExport'
 
 export default function ClientDashboard() {
   const { t, lang } = useLanguage()
@@ -87,6 +88,13 @@ export default function ClientDashboard() {
         ))}
         {upcoming.length === 0 && <p className="text-neutral-500">{t('V nejbližších dnech nemáš další naplánovaný trénink.', "You don't have any more workouts scheduled in the coming days.")}</p>}
       </div>
+
+      <button
+        onClick={downloadMyDataExport}
+        className="flex items-center gap-1.5 text-xs text-neutral-600 hover:text-neutral-400 mt-10"
+      >
+        <Download size={13} /> {t('Stáhnout moje data (GDPR export)', 'Download my data (GDPR export)')}
+      </button>
     </div>
   )
 }

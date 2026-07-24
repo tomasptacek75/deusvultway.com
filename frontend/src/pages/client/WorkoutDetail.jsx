@@ -13,12 +13,19 @@ export default function WorkoutDetail() {
   const [workout, setWorkout] = useState(null)
   const [restUntil, setRestUntil] = useState(null)
   const [queuedCount, setQueuedCount] = useState(getQueuedCount())
+  const [comments, setComments] = useState([])
+  const [showComments, setShowComments] = useState(false)
 
   function load() {
     apiClient.get(`/workouts/${id}`).then((r) => setWorkout(r.data))
   }
 
+  function loadComments() {
+    apiClient.get(`/workouts/${id}/comments`).then((r) => setComments(r.data))
+  }
+
   useEffect(load, [id])
+  useEffect(loadComments, [id])
 
   useEffect(() => {
     return initOfflineSync(() => { setQueuedCount(getQueuedCount()); load() })
@@ -27,6 +34,11 @@ export default function WorkoutDetail() {
   async function completeWorkout() {
     await apiClient.patch(`/workouts/${id}/complete`)
     load()
+  }
+
+  async function submitComment(body) {
+    await apiClient.post(`/workouts/${id}/comments`, { body })
+    loadComments()
   }
 
   if (!workout) return null
@@ -58,6 +70,26 @@ export default function WorkoutDetail() {
         )}
       </div>
       {workout.notes && <p className="text-neutral-400 mb-4">{workout.notes}</p>}
+
+      <div className="mb-6">
+        <button
+          onClick={() => setShowComments((s) => !s)}
+          className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-white"
+        >
+          <MessageSquare size={13} />
+          {showComments
+            ? t('Skrýt komentáře k tréninku', 'Hide workout comments')
+            : t('Zobrazit komentáře k tréninku', 'Show workout comments')}
+          {comments.length > 0 && ` (${comments.length})`}
+        </button>
+        {showComments && (
+          <CommentThread
+            comments={comments}
+            onSubmit={submitComment}
+            placeholder={t('Napiš komentář k tréninku…', 'Write a comment about this workout…')}
+          />
+        )}
+      </div>
 
       {queuedCount > 0 && (
         <div className="mb-6 flex items-center gap-2 text-xs text-neutral-400 bg-neutral-900 border border-dashed border-neutral-700 rounded-md px-3 py-2">

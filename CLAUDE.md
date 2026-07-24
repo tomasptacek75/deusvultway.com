@@ -105,6 +105,17 @@ SQLite DB. Known scope gaps below apply to both environments equally, not hidden
 - **Video annotation (T5)** — no video upload/hosting infra exists (`video_url` is still just a
   pasted link). Feedback is timestamped text comments (`exercise_comments`/`workout_comments`
   tables, `CommentThread.jsx`), not drawing/annotating on the video itself.
+- **Correction (2026-07-24):** the "workout comment threads" and "GDPR data export" items in the
+  feature list two paragraphs up were only ever half-true — the backend endpoints
+  (`GET/POST /workouts/{id}/comments`, `GET /me/export`) existed and worked, but no frontend page
+  ever called them (confirmed via `grep` across `frontend/src` at the time). Found during an e2e
+  coverage review and fixed the same day: `WorkoutDetail.jsx` (client) and `ClientDetail.jsx`'s
+  `WorkoutEditor` (trainer) now both render a `CommentThread` bound to the workout-level endpoint
+  (separate from the pre-existing exercise-level one), and both dashboards
+  (`ClientDashboard.jsx`/`TrainerDashboard.jsx`) got a small "Stáhnout moje data (GDPR export)"
+  button (`frontend/src/utils/gdprExport.js`) that downloads the `/me/export` JSON as a file. If a
+  future review finds another feature listed here that isn't actually reachable from any page,
+  don't assume the list is accurate just because it reads confidently — grep the frontend first.
 - **Offline mode** — `frontend/src/offlineQueue.js` queues failed set-log POSTs in `localStorage`
   and flushes on reconnect (with server-side idempotency via `exercise_logs.client_ref`). This is
   not a full PWA — no service worker, no offline app-shell caching, just the one write path that

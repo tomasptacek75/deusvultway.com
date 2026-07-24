@@ -1,0 +1,6 @@
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [L,QSA]
+
+# Předat Authorization header (Forpsi CGI fix)
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1

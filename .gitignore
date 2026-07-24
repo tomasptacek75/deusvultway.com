@@ -1,0 +1,13 @@
+credentials/
+.env
+.env.local
+node_modules/
+php-forpsi/src/config.php
+php-forpsi/data/
+_ftp_credentials.py
+dist/
+__pycache__/
+
+# Generovaný frontend build (Vite outDir je mimo frontend/, viz vite.config.js)
+php-forpsi/public/assets/
+php-forpsi/public/index.html

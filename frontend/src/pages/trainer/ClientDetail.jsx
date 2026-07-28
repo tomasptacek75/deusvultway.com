@@ -868,57 +868,92 @@ function PhotosTab({ clientId }) {
 
 // Prostředí/vybavení klienta (portál) — výběr ze spravovaného seznamu (equipment_options),
 // ne volný text. David tady vidí, s čím klient cvičí, než mu sestaví plán.
+// Klient buď trénuje v konkrétní posilovně (vybavení je dané posilovnou, viz Equipment.jsx —
+// každá posilovna má vlastní seznam) nebo doma (klient si sám zaškrtne, co má k dispozici,
+// z katalogu vybavení). Nikdy obojí najednou — je to buď/anebo podle toho, kde reálně cvičí.
 function EquipmentTab({ clientId }) {
   const { t } = useLanguage()
-  const [options, setOptions] = useState([])
-  const [selected, setSelected] = useState([])
+  const [client, setClient] = useState(null)
+  const [gyms, setGyms] = useState([])
+  const [gymEquipment, setGymEquipment] = useState([])
+  const [catalog, setCatalog] = useState([])
+  const [homeSelected, setHomeSelected] = useState([])
 
   function load() {
-    apiClient.get('/equipment-options').then((r) => setOptions(r.data))
-    apiClient.get(`/clients/${clientId}/equipment`).then((r) => setSelected(r.data))
+    apiClient.get(`/clients/${clientId}`).then((r) => setClient(r.data))
+    apiClient.get('/gyms').then((r) => setGyms(r.data))
+    apiClient.get('/equipment-options').then((r) => setCatalog(r.data))
+    apiClient.get(`/clients/${clientId}/equipment`).then((r) => setHomeSelected(r.data))
   }
 
   useEffect(load, [clientId])
 
-  async function toggle(option, checked) {
-    if (checked) {
-      await apiClient.post(`/clients/${clientId}/equipment`, { equipment_id: option.id })
+  useEffect(() => {
+    if (client?.gym_id) {
+      apiClient.get(`/gyms/${client.gym_id}/equipment`).then((r) => setGymEquipment(r.data))
     } else {
-      await apiClient.delete(`/clients/${clientId}/equipment/${option.id}`)
+      setGymEquipment([])
+    }
+  }, [client?.gym_id])
+
+  async function setWhere(gymId) {
+    await apiClient.put(`/clients/${clientId}`, { gym_id: gymId })
+    load()
+  }
+
+  async function toggleHome(item, checked) {
+    if (checked) {
+      await apiClient.post(`/clients/${clientId}/equipment`, { equipment_id: item.id })
+    } else {
+      await apiClient.delete(`/clients/${clientId}/equipment/${item.id}`)
     }
     load()
   }
 
-  const selectedIds = new Set(selected.map((s) => s.id))
-  const gyms = options.filter((o) => o.kind === 'gym')
-  const equipment = options.filter((o) => o.kind === 'equipment')
+  if (!client) return null
+  const homeSelectedIds = new Set(homeSelected.map((s) => s.id))
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-3">{t('Posilovna', 'Gym')}</h3>
-        <div className="space-y-2">
-          {gyms.map((o) => (
-            <label key={o.id} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={selectedIds.has(o.id)} onChange={(e) => toggle(o, e.target.checked)} />
-              {t(o.name, o.name_en || o.name)}
-            </label>
+        <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-3">{t('Kde klient cvičí', 'Where the client trains')}</h3>
+        <select
+          value={client.gym_id ?? ''}
+          onChange={(e) => setWhere(e.target.value ? Number(e.target.value) : null)}
+          className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="">{t('Doma', 'Home')}</option>
+          {gyms.map((g) => (
+            <option key={g.id} value={g.id}>{t(g.name, g.name_en || g.name)}</option>
           ))}
-          {gyms.length === 0 && <p className="text-neutral-500 text-sm">{t('Žádné posilovny v seznamu.', 'No gyms in the list.')}</p>}
-        </div>
+        </select>
       </div>
-      <div>
-        <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-3">{t('Vybavení doma', 'Home equipment')}</h3>
-        <div className="space-y-2">
-          {equipment.map((o) => (
-            <label key={o.id} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={selectedIds.has(o.id)} onChange={(e) => toggle(o, e.target.checked)} />
-              {t(o.name, o.name_en || o.name)}
-            </label>
-          ))}
-          {equipment.length === 0 && <p className="text-neutral-500 text-sm">{t('Žádné vybavení v seznamu.', 'No equipment in the list.')}</p>}
+
+      {client.gym_id ? (
+        <div>
+          <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-3">
+            {t('Vybavení v této posilovně', 'Equipment at this gym')}
+          </h3>
+          <ul className="space-y-1 text-sm text-neutral-300">
+            {gymEquipment.map((o) => <li key={o.id}>{t(o.name, o.name_en || o.name)}</li>)}
+            {gymEquipment.length === 0 && <p className="text-neutral-500 text-sm">{t('Tahle posilovna zatím nemá zadané vybavení.', 'This gym has no equipment set yet.')}</p>}
+          </ul>
         </div>
-      </div>
+      ) : (
+        <div>
+          <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-3">{t('Vybavení doma', 'Home equipment')}</h3>
+          <div className="space-y-2">
+            {catalog.filter((o) => o.active).map((o) => (
+              <label key={o.id} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={homeSelectedIds.has(o.id)} onChange={(e) => toggleHome(o, e.target.checked)} />
+                {t(o.name, o.name_en || o.name)}
+              </label>
+            ))}
+            {catalog.filter((o) => o.active).length === 0 && <p className="text-neutral-500 text-sm">{t('Žádné vybavení v seznamu.', 'No equipment in the list.')}</p>}
+          </div>
+        </div>
+      )}
+
       <p className="text-xs text-neutral-600">
         {t('Spravovat seznam posiloven a vybavení lze na stránce Vybavení.', 'Manage the list of gyms and equipment on the Equipment page.')}
       </p>

@@ -285,7 +285,9 @@ function initSchema(PDO $pdo): void
     CREATE INDEX IF NOT EXISTS idx_pp_client ON progress_photos(client_id);
 
     -- ── Vybavení / posilovny (portál) — spravovaný seznam, ne volný text, na rozdíl od
-    -- workouts.location. `kind` je volný text ('gym'|'equipment'), stejná konvence jako users.role.
+    -- workouts.location. `equipment_options` je čistě katalog kusů vybavení (guma, jednoručky...);
+    -- posilovny žijí ve vlastní tabulce `gyms`, každá s vlastním seznamem vybavení (gym_equipment),
+    -- protože různé posilovny mají různé vybavení — nejde o jeden společný zaškrtávací seznam.
     CREATE TABLE IF NOT EXISTS equipment_options (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         trainer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -306,6 +308,27 @@ function initSchema(PDO $pdo): void
         UNIQUE(client_id, equipment_id)
     );
     CREATE INDEX IF NOT EXISTS idx_ceq_client ON client_equipment(client_id);
+
+    CREATE TABLE IF NOT EXISTS gyms (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        trainer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name       TEXT NOT NULL,
+        name_en    TEXT,
+        active     INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_gym_trainer ON gyms(trainer_id);
+
+    -- Které kusy vybavení (z equipment_options) konkrétní posilovna má — spravuje trenér jednou
+    -- za posilovnu, ne opakovaně za každého klienta, co tam chodí.
+    CREATE TABLE IF NOT EXISTS gym_equipment (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        gym_id       INTEGER NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
+        equipment_id INTEGER NOT NULL REFERENCES equipment_options(id) ON DELETE CASCADE,
+        created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(gym_id, equipment_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ge_gym ON gym_equipment(gym_id);
 
     -- ── Knihovna obsahu (portál) — videa/strava/playlisty/cokoli dalšího, viditelné všem
     -- klientům (osobní i portál). Hide-not-delete přes `active`, stejný vzor jako users.active.
@@ -410,6 +433,16 @@ function initSchema(PDO $pdo): void
     seedPortalDemoData($pdo);
 
     $pdo->exec('PRAGMA user_version = 2');
+    }
+
+    if ($schemaVersion < 3) {
+    // Kterou posilovnu (pokud nějakou) klient navštěvuje — určuje, jestli appka bere vybavení
+    // z gyms/gym_equipment (posilovna) nebo z client_equipment (doma), viz EquipmentTab.
+    try { $pdo->exec("ALTER TABLE users ADD COLUMN gym_id INTEGER REFERENCES gyms(id)"); } catch (\Exception) {}
+
+    migrateGymsFromEquipmentOptions($pdo);
+
+    $pdo->exec('PRAGMA user_version = 3');
     }
 }
 
@@ -835,5 +868,51 @@ function seedPortalDemoData(PDO $pdo): void
     $stmt = $pdo->prepare("UPDATE users SET client_type='portal' WHERE email=?");
     foreach ($portalEmails as $email) {
         $stmt->execute([$email]);
+    }
+}
+
+// Posilovny dřív žily jako equipment_options s kind='gym' (jeden společný zaškrtávací seznam
+// pro všechny) — přesouvá se to do vlastní tabulky gyms, každá posilovna s vlastním seznamem
+// vybavení (gym_equipment), protože různé posilovny mají různé vybavení. Stará equipment_options
+// data pro 'gym' se po přesunu smažou (ON DELETE CASCADE smaže i případné client_equipment vazby
+// na ně — ty dávaly smysl jen v tom starém, nahrazeném modelu).
+function migrateGymsFromEquipmentOptions(PDO $pdo): void
+{
+    $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
+    if (!$trainer) return;
+    $trainerId = (int)$trainer['id'];
+
+    // Pár realističtějších kusů posilovnového vybavení do katalogu (dřív tam byly jen domácí
+    // kusy) — ať mají nově vzniklé demo posilovny co reálně vybrat.
+    $gymEquipment = [
+        ['Kladkový trenažér', 'Cable machine'],
+        ['Dřepovací stojan', 'Squat rack'],
+        ['Benč', 'Bench press'],
+    ];
+    foreach ($gymEquipment as [$name, $nameEn]) {
+        if (fetchOne($pdo, "SELECT id FROM equipment_options WHERE trainer_id=? AND name=?", [$trainerId, $name])) continue;
+        insertRow($pdo, 'equipment_options', ['trainer_id' => $trainerId, 'name' => $name, 'name_en' => $nameEn, 'kind' => 'equipment']);
+    }
+
+    $oldGyms = fetchAll($pdo, "SELECT * FROM equipment_options WHERE trainer_id=? AND kind='gym'", [$trainerId]);
+    foreach ($oldGyms as $old) {
+        $existing = fetchOne($pdo, "SELECT id FROM gyms WHERE trainer_id=? AND name=?", [$trainerId, $old['name']]);
+        if ($existing) {
+            $gymId = (int)$existing['id'];
+        } else {
+            $gymId = insertRow($pdo, 'gyms', [
+                'trainer_id' => $trainerId, 'name' => $old['name'], 'name_en' => $old['name_en'], 'active' => (int)$old['active'],
+            ]);
+            // Demo vybavení pro nově vzniklou posilovnu — dvě různé sady, ať je vidět, že se
+            // posilovny mezi sebou liší, ne že mají všechny stejný katalog.
+            $picks = $old['name'] === 'FF Anděl'
+                ? ['Kladkový trenažér', 'Dřepovací stojan', 'Jednoručky']
+                : ['Benč', 'Jednoručky', 'Kettlebell'];
+            $items = fetchAll($pdo, "SELECT id FROM equipment_options WHERE trainer_id=? AND name IN ('" . implode("','", $picks) . "')", [$trainerId]);
+            foreach ($items as $item) {
+                try { insertRow($pdo, 'gym_equipment', ['gym_id' => $gymId, 'equipment_id' => (int)$item['id']]); } catch (\Exception) {}
+            }
+        }
+        $pdo->prepare("DELETE FROM equipment_options WHERE id=?")->execute([(int)$old['id']]);
     }
 }

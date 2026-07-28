@@ -142,7 +142,7 @@ function clientSummary(PDO $pdo, int $clientId): array
 
 if ($method === 'GET' && $path === '/clients') {
     requireRole($config, 'trainer');
-    $sql = "SELECT id, email, phone, display_name, client_type, created_at, (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE role='client' AND active=1";
+    $sql = "SELECT id, email, phone, display_name, client_type, gym_id, created_at, (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE role='client' AND active=1";
     $params = [];
     if (!empty($_GET['client_type'])) { $sql .= " AND client_type=?"; $params[] = $_GET['client_type']; }
     $sql .= " ORDER BY display_name";
@@ -155,7 +155,7 @@ if ($method === 'GET' && $path === '/clients') {
 if ($method === 'GET' && count($seg) === 2 && $seg[0] === 'clients') {
     $auth = requireAuth($config);
     assertClientAccess($pdo, $auth, (int)$seg[1]);
-    $c = fetchOne($pdo, "SELECT id, email, phone, display_name, client_type, (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE id=? AND role='client'", [(int)$seg[1]]);
+    $c = fetchOne($pdo, "SELECT id, email, phone, display_name, client_type, gym_id, (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE id=? AND role='client'", [(int)$seg[1]]);
     if (!$c) jsonResponse(['detail' => 'Klient nenalezen'], 404);
     jsonResponse($c);
 }
@@ -193,10 +193,13 @@ if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'clients') {
     if (!$existing) jsonResponse(['detail' => 'Klient nenalezen'], 404);
     $b = jsonInput();
     $clientType = isset($b['client_type']) && in_array($b['client_type'], ['personal', 'portal'], true) ? $b['client_type'] : $existing['client_type'];
-    $pdo->prepare("UPDATE users SET display_name=?, phone=?, client_type=? WHERE id=?")->execute([
-        $b['display_name'] ?? $existing['display_name'], $b['phone'] ?? $existing['phone'], $clientType, (int)$seg[1],
+    // array_key_exists (ne ??) — klient/trenér musí umět gym_id výslovně vynulovat zpět na
+    // "doma", null z JSONu by se jinak přes ?? tiše ignoroval a padl zpátky na starou hodnotu.
+    $gymId = array_key_exists('gym_id', $b) ? ($b['gym_id'] !== null ? (int)$b['gym_id'] : null) : $existing['gym_id'];
+    $pdo->prepare("UPDATE users SET display_name=?, phone=?, client_type=?, gym_id=? WHERE id=?")->execute([
+        $b['display_name'] ?? $existing['display_name'], $b['phone'] ?? $existing['phone'], $clientType, $gymId, (int)$seg[1],
     ]);
-    jsonResponse(fetchOne($pdo, "SELECT id, email, phone, display_name, client_type, created_at FROM users WHERE id=?", [(int)$seg[1]]));
+    jsonResponse(fetchOne($pdo, "SELECT id, email, phone, display_name, client_type, gym_id, created_at FROM users WHERE id=?", [(int)$seg[1]]));
 }
 
 if ($method === 'DELETE' && count($seg) === 2 && $seg[0] === 'clients') {
@@ -268,6 +271,68 @@ if ($method === 'DELETE' && count($seg) === 4 && $seg[0] === 'clients' && $seg[2
     $auth = requireAuth($config);
     assertClientAccess($pdo, $auth, (int)$seg[1]);
     $pdo->prepare("DELETE FROM client_equipment WHERE client_id=? AND equipment_id=?")->execute([(int)$seg[1], (int)$seg[3]]);
+    jsonResponse(['ok' => true]);
+}
+
+// ── POSILOVNY (portál) — každá má vlastní seznam vybavení, hide-not-delete přes `active` ──
+
+if ($method === 'GET' && $path === '/gyms') {
+    $auth = requireAuth($config);
+    if ($auth['role'] === 'trainer' && !empty($_GET['include_inactive'])) {
+        jsonResponse(fetchAll($pdo, "SELECT * FROM gyms WHERE trainer_id=? ORDER BY name", [$auth['user_id']]));
+    }
+    $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
+    $trainerId = $trainer ? (int)$trainer['id'] : 0;
+    jsonResponse(fetchAll($pdo, "SELECT * FROM gyms WHERE trainer_id=? AND active=1 ORDER BY name", [$trainerId]));
+}
+
+if ($method === 'POST' && $path === '/gyms') {
+    $auth = requireRole($config, 'trainer');
+    $b = jsonInput();
+    if (empty($b['name'])) jsonResponse(['detail' => 'name je povinné'], 400);
+    $id = insertRow($pdo, 'gyms', [
+        'trainer_id' => $auth['user_id'], 'name' => $b['name'], 'name_en' => $b['name_en'] ?? null,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM gyms WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'gyms') {
+    requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $existing = fetchOne($pdo, "SELECT * FROM gyms WHERE id=?", [$id]);
+    if (!$existing) jsonResponse(['detail' => 'Posilovna nenalezena'], 404);
+    $b = jsonInput();
+    $pdo->prepare("UPDATE gyms SET name=?, name_en=?, active=? WHERE id=?")->execute([
+        $b['name'] ?? $existing['name'], $b['name_en'] ?? $existing['name_en'],
+        isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM gyms WHERE id=?", [$id]));
+}
+
+if ($method === 'GET' && count($seg) === 3 && $seg[0] === 'gyms' && $seg[2] === 'equipment') {
+    requireAuth($config);
+    jsonResponse(fetchAll($pdo, "
+        SELECT ge.id AS gym_equipment_id, eo.*
+        FROM gym_equipment ge JOIN equipment_options eo ON eo.id = ge.equipment_id
+        WHERE ge.gym_id=? ORDER BY eo.order_num, eo.name
+    ", [(int)$seg[1]]));
+}
+
+if ($method === 'POST' && count($seg) === 3 && $seg[0] === 'gyms' && $seg[2] === 'equipment') {
+    requireRole($config, 'trainer');
+    $gymId = (int)$seg[1];
+    if (!fetchOne($pdo, "SELECT id FROM gyms WHERE id=?", [$gymId])) jsonResponse(['detail' => 'Posilovna nenalezena'], 404);
+    $b = jsonInput();
+    if (empty($b['equipment_id'])) jsonResponse(['detail' => 'equipment_id je povinné'], 400);
+    try {
+        insertRow($pdo, 'gym_equipment', ['gym_id' => $gymId, 'equipment_id' => (int)$b['equipment_id']]);
+    } catch (\Exception) {} // UNIQUE(gym_id, equipment_id) — už přiřazeno, no-op
+    jsonResponse(['ok' => true], 201);
+}
+
+if ($method === 'DELETE' && count($seg) === 4 && $seg[0] === 'gyms' && $seg[2] === 'equipment') {
+    requireRole($config, 'trainer');
+    $pdo->prepare("DELETE FROM gym_equipment WHERE gym_id=? AND equipment_id=?")->execute([(int)$seg[1], (int)$seg[3]]);
     jsonResponse(['ok' => true]);
 }
 

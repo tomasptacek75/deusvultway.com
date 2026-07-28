@@ -145,12 +145,19 @@ a plan-mode design session that found most of what the spec asked for was alread
   `db.php`). This was the first blocking piece; the "+ Nový klient" form on `TrainerDashboard.jsx`
   is now the only place client accounts get created (still passwordless, matching the existing
   demo-login POC model — no signup/invite flow was built).
-- **`equipment_options` + `client_equipment`** — a trainer-managed catalog of gyms/equipment
-  (`kind` = `'gym'`|`'equipment'`), deliberately a **managed select list, not free text** (contrast
-  with the existing free-text `workouts.location`/`plan_blocks.default_location`). Managed on
-  `frontend/src/pages/trainer/Equipment.jsx`, assigned per-client on a new "Vybavení" tab in
-  `ClientDetail.jsx`. Exists so David can see a client's real training environment before designing
-  their plan — there's no automated plan-adaptation logic, it's informational context for David.
+- **`equipment_options` + `client_equipment`, plus `gyms` + `gym_equipment`** — a trainer-managed
+  catalog of equipment items, deliberately a **managed select list, not free text** (contrast with
+  the existing free-text `workouts.location`/`plan_blocks.default_location`). Gyms are their own
+  entity, each with its **own** equipment list drawn from the same catalog (`gym_equipment`) —
+  refined 2026-07-28 from an earlier version where a gym was just another catalog row, which didn't
+  reflect that different gyms have different equipment. `users.gym_id` (nullable) records which
+  single gym a client trains at; null means home, in which case the client's own picks live in
+  `client_equipment` instead. Managed on `frontend/src/pages/trainer/Equipment.jsx` (two sections:
+  "Posilovny", each expandable to manage its own equipment picklist; "Vybavení", the flat catalog),
+  surfaced on a "Vybavení" tab in `ClientDetail.jsx` as a single "Kde klient cvičí" select (a gym →
+  read-only list of that gym's equipment; "Doma" → the client's own checkbox picks). Exists so
+  David can see a client's real training environment before designing their plan — there's no
+  automated plan-adaptation logic, it's informational context for David.
 - **`content_sections` + `content_items`** — a generic, extensible content library (`type`:
   `video`/`article`/`playlist`/anything else added later), explicitly visible to **every** client,
   not portal-exclusive. Trainer management page `trainer/ContentLibrary.jsx`, client-facing

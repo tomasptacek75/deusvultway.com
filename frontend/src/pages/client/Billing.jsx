@@ -29,7 +29,10 @@ export default function Billing() {
         {subs.map((s) => (
           <div key={s.id} className="rounded-lg border border-neutral-800 bg-neutral-900 p-5">
             <div className="flex items-center justify-between mb-1">
-              <div className="font-semibold text-lg">{s.plan_name}</div>
+              <div className="font-semibold text-lg">
+                {s.plan_name}
+                {s.tier && <span className="ml-2 text-xs text-blood-500 uppercase tracking-wide align-middle">{s.tier}</span>}
+              </div>
               <span className={`text-xs uppercase tracking-wide px-2 py-1 rounded-md ${s.status === 'active' ? 'text-blood-500 bg-blood-900/20' : 'text-neutral-500 bg-neutral-800'}`}>
                 {statusLabel[s.status] ?? s.status}
               </span>

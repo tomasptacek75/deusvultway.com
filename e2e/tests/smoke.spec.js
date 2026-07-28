@@ -50,4 +50,20 @@ test.describe('Smoke', () => {
     await page.goto('/trainer')
     await page.waitForURL('**/login')
   })
+
+  test('nová navigace pro vybavení a knihovnu je vidět (portálové rozšíření)', async ({ page, request }) => {
+    const trainer = await getTrainer(request)
+    await page.goto('/login')
+    await page.getByRole('button', { name: trainer.display_name, exact: true }).click()
+    await page.waitForURL('**/trainer/calendar')
+    await expect(page.getByRole('link', { name: /^(Vybavení|Equipment)$/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /^(Knihovna|Library)$/ })).toBeVisible()
+
+    const client = await getClient(request)
+    await page.getByTitle(/Odhlásit|Log out/i).click()
+    await page.waitForURL('**/login')
+    await page.getByRole('button', { name: client.display_name, exact: true }).click()
+    await page.waitForURL('**/client')
+    await expect(page.getByRole('link', { name: /^(Knihovna|Library)$/ })).toBeVisible()
+  })
 })

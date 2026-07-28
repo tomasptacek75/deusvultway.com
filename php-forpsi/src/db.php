@@ -283,6 +283,57 @@ function initSchema(PDO $pdo): void
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_pp_client ON progress_photos(client_id);
+
+    -- ── Vybavení / posilovny (portál) — spravovaný seznam, ne volný text, na rozdíl od
+    -- workouts.location. `kind` je volný text ('gym'|'equipment'), stejná konvence jako users.role.
+    CREATE TABLE IF NOT EXISTS equipment_options (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        trainer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name       TEXT NOT NULL,
+        name_en    TEXT,
+        kind       TEXT NOT NULL DEFAULT 'equipment',
+        order_num  INTEGER NOT NULL DEFAULT 0,
+        active     INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_eo_trainer ON equipment_options(trainer_id);
+
+    CREATE TABLE IF NOT EXISTS client_equipment (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        equipment_id INTEGER NOT NULL REFERENCES equipment_options(id) ON DELETE CASCADE,
+        created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(client_id, equipment_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ceq_client ON client_equipment(client_id);
+
+    -- ── Knihovna obsahu (portál) — videa/strava/playlisty/cokoli dalšího, viditelné všem
+    -- klientům (osobní i portál). Hide-not-delete přes `active`, stejný vzor jako users.active.
+    CREATE TABLE IF NOT EXISTS content_sections (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        trainer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title      TEXT NOT NULL,
+        title_en   TEXT,
+        order_num  INTEGER NOT NULL DEFAULT 0,
+        active     INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_cs_trainer ON content_sections(trainer_id);
+
+    CREATE TABLE IF NOT EXISTS content_items (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        section_id INTEGER NOT NULL REFERENCES content_sections(id) ON DELETE CASCADE,
+        type       TEXT NOT NULL DEFAULT 'video',
+        title      TEXT NOT NULL,
+        title_en   TEXT,
+        body       TEXT,
+        body_en    TEXT,
+        url        TEXT,
+        order_num  INTEGER NOT NULL DEFAULT 0,
+        active     INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_ci_section ON content_items(section_id);
     ");
 
     // Všechny ALTER TABLE pokusy a seed/backfill funkce níž jsou samy o sobě idempotentní, ale
@@ -346,6 +397,19 @@ function initSchema(PDO $pdo): void
     try { $pdo->exec("ALTER TABLE exercise_logs ADD COLUMN note TEXT"); } catch (\Exception) {}
 
     $pdo->exec('PRAGMA user_version = 1');
+    }
+
+    if ($schemaVersion < 2) {
+    // Typ klienta (portál vs. 1:1) — volný text jako users.role, jen dvě hodnoty se skutečně
+    // používají, nic to nevynucuje na úrovni DB (stejná konvence jako role).
+    try { $pdo->exec("ALTER TABLE users ADD COLUMN client_type TEXT NOT NULL DEFAULT 'personal'"); } catch (\Exception) {}
+    // Kategorie cenového tieru portálového předplatného — volný text jako plan_name; David
+    // ještě nedodal finální náplň/názvy 3 variant (viz TIERS v Landing.jsx), proto žádný enum.
+    try { $pdo->exec("ALTER TABLE subscriptions ADD COLUMN tier TEXT"); } catch (\Exception) {}
+
+    seedPortalDemoData($pdo);
+
+    $pdo->exec('PRAGMA user_version = 2');
     }
 }
 
@@ -714,5 +778,62 @@ function seedJulyAugustDemoSchedule(PDO $pdo): void
                 'completed_at' => $status === 'completed' ? "{$slot['date']} {$slot['time']}:00" : null,
             ]);
         }
+    }
+}
+
+// Demo data pro portálové rozšíření (equipment_options + content_sections/items) a přeznačení
+// pár už seedovaných klientů na client_type='portal', ať je nová funkce od začátku vidět na
+// test/produkci. Idempotentní podle name/title, stejný vzor jako seedExtraDemoClients.
+function seedPortalDemoData(PDO $pdo): void
+{
+    $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
+    if (!$trainer) return;
+    $trainerId = (int)$trainer['id'];
+
+    $equipment = [
+        ['FF Anděl', 'FF Anděl', 'gym'],
+        ['Posilovna Vinohrady', 'Vinohrady Gym', 'gym'],
+        ['Odporová guma', 'Resistance band', 'equipment'],
+        ['Jednoručky', 'Dumbbells', 'equipment'],
+        ['Kettlebell', 'Kettlebell', 'equipment'],
+        ['Vlastní váha (bez vybavení)', 'Bodyweight only', 'equipment'],
+    ];
+    foreach ($equipment as [$name, $nameEn, $kind]) {
+        if (fetchOne($pdo, "SELECT id FROM equipment_options WHERE trainer_id=? AND name=?", [$trainerId, $name])) continue;
+        insertRow($pdo, 'equipment_options', ['trainer_id' => $trainerId, 'name' => $name, 'name_en' => $nameEn, 'kind' => $kind]);
+    }
+
+    $sections = [
+        ['Video ukázky tréninku', 'Training style videos', [
+            ['video', 'David — jak přistupuji k technice dřepu', 'David — my approach to squat technique', 'Krátké video o tom, na co se u dřepu zaměřuji.', 'Short video on what I focus on in the squat.', 'https://example.com/video/squat-technique'],
+        ]],
+        ['Strava', 'Nutrition', [
+            ['article', 'Základy příjmu bílkovin', 'Protein intake basics', 'Obecný přehled, kolik bílkovin denně a proč.', 'General overview of daily protein intake and why.', null],
+        ]],
+        ['Playlisty', 'Playlists', [
+            ['playlist', 'Playlist na sílu', 'Strength playlist', null, null, 'https://example.com/playlist/strength'],
+        ]],
+    ];
+    foreach ($sections as [$title, $titleEn, $items]) {
+        $section = fetchOne($pdo, "SELECT id FROM content_sections WHERE trainer_id=? AND title=?", [$trainerId, $title]);
+        if (!$section) {
+            $sectionId = insertRow($pdo, 'content_sections', ['trainer_id' => $trainerId, 'title' => $title, 'title_en' => $titleEn]);
+        } else {
+            $sectionId = (int)$section['id'];
+        }
+        foreach ($items as [$type, $itemTitle, $itemTitleEn, $body, $bodyEn, $url]) {
+            if (fetchOne($pdo, "SELECT id FROM content_items WHERE section_id=? AND title=?", [$sectionId, $itemTitle])) continue;
+            insertRow($pdo, 'content_items', [
+                'section_id' => $sectionId, 'type' => $type, 'title' => $itemTitle, 'title_en' => $itemTitleEn,
+                'body' => $body, 'body_en' => $bodyEn, 'url' => $url,
+            ]);
+        }
+    }
+
+    // Pár už seedovaných klientů přeznačit na portál, ať je segment od začátku demoovatelný.
+    $portalEmails = ['lucie.horakova@example.com', 'martin.benes@example.com'];
+    $stmt = $pdo->prepare("UPDATE users SET client_type='portal' WHERE email=?");
+    foreach ($portalEmails as $email) {
+        $stmt->execute([$email]);
     }
 }

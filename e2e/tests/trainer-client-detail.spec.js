@@ -93,11 +93,15 @@ test.describe('Trenér — detail klienta', () => {
     const planName = uniqueName('E2E Plán')
     await page.getByPlaceholder(/Název plánu/i).fill(planName)
     await page.getByPlaceholder('Kč').fill('1500')
+    // tier je scaffold pro portálové rozšíření (volný text, žádný enum — viz CLAUDE.md) —
+    // ověřuje se jen že se uloží a zobrazí, ne že něco omezuje.
+    await page.getByPlaceholder(/Tier \(volitelné/i).fill('Elite')
     await page.getByRole('button', { name: /Založit předplatné|Create subscription/ }).click()
 
     const subCard = page.locator('div.rounded-lg.border', { hasText: planName })
     await expect(subCard).toBeVisible()
     await expect(subCard).toContainText('1500 Kč')
+    await expect(subCard).toContainText('Elite')
 
     await subCard.getByPlaceholder(/Kč přijato|Kč received/).fill('1500')
     await subCard.getByRole('button', { name: /Zaznamenat platbu|Record payment/ }).click()

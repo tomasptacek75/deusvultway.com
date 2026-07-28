@@ -10,7 +10,7 @@ import { useLanguage } from '../../i18n/LanguageContext'
 import { findScheduleConflict } from '../../utils/schedule'
 import { dayOfWeek, formatDateShort } from '../../utils/date'
 
-const TAB_KEYS = ['workouts', 'nutrition', 'progress', 'one-rm', 'history', 'billing', 'messages', 'photos']
+const TAB_KEYS = ['workouts', 'nutrition', 'progress', 'one-rm', 'history', 'billing', 'messages', 'photos', 'equipment']
 
 export default function ClientDetail() {
   const { t } = useLanguage()
@@ -39,6 +39,11 @@ export default function ClientDetail() {
     loadClient()
   }
 
+  async function updateClientType(clientType) {
+    await apiClient.put(`/clients/${clientId}`, { client_type: clientType })
+    loadClient()
+  }
+
   return (
     <div>
       <Link to={fromCalendar ? '/trainer/calendar' : '/trainer'} className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-white mb-6">
@@ -55,7 +60,17 @@ export default function ClientDetail() {
             <input type="file" accept="image/*" onChange={uploadAvatar} className="hidden" />
           </label>
           <div>
-            <div className="font-display text-2xl">{client.display_name}</div>
+            <div className="font-display text-2xl flex items-center gap-2">
+              {client.display_name}
+              <select
+                value={client.client_type}
+                onChange={(e) => updateClientType(e.target.value)}
+                className="bg-neutral-950 border border-neutral-800 rounded-md px-2 py-0.5 text-xs font-sans"
+              >
+                <option value="personal">{t('Osobní', 'Personal')}</option>
+                <option value="portal">{t('Portál', 'Portal')}</option>
+              </select>
+            </div>
             <div className="text-sm text-neutral-500">{client.email}</div>
           </div>
         </div>
@@ -71,6 +86,7 @@ export default function ClientDetail() {
           ['billing', t('Platby', 'Billing')],
           ['messages', t('Zprávy', 'Messages')],
           ['photos', t('Fotky', 'Photos')],
+          ['equipment', t('Vybavení', 'Equipment')],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -92,6 +108,7 @@ export default function ClientDetail() {
       {tab === 'billing' && <BillingTab clientId={clientId} />}
       {tab === 'messages' && <MessagesTab clientId={clientId} />}
       {tab === 'photos' && <PhotosTab clientId={clientId} />}
+      {tab === 'equipment' && <EquipmentTab clientId={clientId} />}
     </div>
   )
 }
@@ -688,7 +705,7 @@ function BillingTab({ clientId }) {
   const { t } = useLanguage()
   const statusLabel = { active: t('Aktivní', 'Active'), canceled: t('Zrušené', 'Canceled'), past_due: t('Po splatnosti', 'Past due') }
   const [subs, setSubs] = useState([])
-  const [subForm, setSubForm] = useState({ plan_name: '', price_kc: '', billing_period: 'monthly', current_period_end: '' })
+  const [subForm, setSubForm] = useState({ plan_name: '', price_kc: '', billing_period: 'monthly', current_period_end: '', tier: '' })
   const [payForms, setPayForms] = useState({})
 
   function load() {
@@ -701,7 +718,7 @@ function BillingTab({ clientId }) {
     e.preventDefault()
     if (!subForm.plan_name || !subForm.price_kc) return
     await apiClient.post('/subscriptions', { client_id: clientId, ...subForm })
-    setSubForm({ plan_name: '', price_kc: '', billing_period: 'monthly', current_period_end: '' })
+    setSubForm({ plan_name: '', price_kc: '', billing_period: 'monthly', current_period_end: '', tier: '' })
     load()
   }
 
@@ -723,6 +740,7 @@ function BillingTab({ clientId }) {
           <option value="one_time">{t('Jednorázově', 'One-time')}</option>
         </select>
         <input type="date" value={subForm.current_period_end} onChange={(e) => setSubForm({ ...subForm, current_period_end: e.target.value })} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm" title={t('Platba do', 'Payment due')} />
+        <input placeholder={t('Tier (volitelné, např. Základ)', 'Tier (optional, e.g. Basic)')} value={subForm.tier} onChange={(e) => setSubForm({ ...subForm, tier: e.target.value })} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm" />
         <button type="submit" className="col-span-2 md:col-span-4 bg-blood-700 hover:bg-blood-600 transition-colors rounded-md px-4 py-2 text-sm font-medium">{t('Založit předplatné', 'Create subscription')}</button>
       </form>
       <p className="text-xs text-neutral-500 mb-6">{t('Bez napojení na platební bránu — platby se zaznamenávají ručně po přijetí (převod/hotovost).', 'No payment gateway connected — payments are recorded manually after receipt (transfer/cash).')}</p>
@@ -731,7 +749,10 @@ function BillingTab({ clientId }) {
         {subs.map((s) => (
           <div key={s.id} className="rounded-lg border border-neutral-800 bg-neutral-900 p-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="font-semibold">{s.plan_name} — {s.price_kc} Kč / {s.billing_period === 'monthly' ? t('měsíc', 'month') : t('jednorázově', 'one-time')}</div>
+              <div className="font-semibold">
+                {s.plan_name} — {s.price_kc} Kč / {s.billing_period === 'monthly' ? t('měsíc', 'month') : t('jednorázově', 'one-time')}
+                {s.tier && <span className="ml-2 text-xs text-blood-500 uppercase tracking-wide align-middle">{s.tier}</span>}
+              </div>
               <span className={`text-xs uppercase tracking-wide px-2 py-1 rounded-md ${s.status === 'active' ? 'text-blood-500 bg-blood-900/20' : 'text-neutral-500 bg-neutral-800'}`}>
                 {statusLabel[s.status] ?? s.status}
               </span>
@@ -841,6 +862,66 @@ function PhotosTab({ clientId }) {
         </div>
       ))}
       {photos.length === 0 && <p className="text-neutral-500 text-sm col-span-full">{t('Klient zatím nenahrál žádné fotky.', 'The client hasn\'t uploaded any photos yet.')}</p>}
+    </div>
+  )
+}
+
+// Prostředí/vybavení klienta (portál) — výběr ze spravovaného seznamu (equipment_options),
+// ne volný text. David tady vidí, s čím klient cvičí, než mu sestaví plán.
+function EquipmentTab({ clientId }) {
+  const { t } = useLanguage()
+  const [options, setOptions] = useState([])
+  const [selected, setSelected] = useState([])
+
+  function load() {
+    apiClient.get('/equipment-options').then((r) => setOptions(r.data))
+    apiClient.get(`/clients/${clientId}/equipment`).then((r) => setSelected(r.data))
+  }
+
+  useEffect(load, [clientId])
+
+  async function toggle(option, checked) {
+    if (checked) {
+      await apiClient.post(`/clients/${clientId}/equipment`, { equipment_id: option.id })
+    } else {
+      await apiClient.delete(`/clients/${clientId}/equipment/${option.id}`)
+    }
+    load()
+  }
+
+  const selectedIds = new Set(selected.map((s) => s.id))
+  const gyms = options.filter((o) => o.kind === 'gym')
+  const equipment = options.filter((o) => o.kind === 'equipment')
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-3">{t('Posilovna', 'Gym')}</h3>
+        <div className="space-y-2">
+          {gyms.map((o) => (
+            <label key={o.id} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={selectedIds.has(o.id)} onChange={(e) => toggle(o, e.target.checked)} />
+              {t(o.name, o.name_en || o.name)}
+            </label>
+          ))}
+          {gyms.length === 0 && <p className="text-neutral-500 text-sm">{t('Žádné posilovny v seznamu.', 'No gyms in the list.')}</p>}
+        </div>
+      </div>
+      <div>
+        <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-3">{t('Vybavení doma', 'Home equipment')}</h3>
+        <div className="space-y-2">
+          {equipment.map((o) => (
+            <label key={o.id} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={selectedIds.has(o.id)} onChange={(e) => toggle(o, e.target.checked)} />
+              {t(o.name, o.name_en || o.name)}
+            </label>
+          ))}
+          {equipment.length === 0 && <p className="text-neutral-500 text-sm">{t('Žádné vybavení v seznamu.', 'No equipment in the list.')}</p>}
+        </div>
+      </div>
+      <p className="text-xs text-neutral-600">
+        {t('Spravovat seznam posiloven a vybavení lze na stránce Vybavení.', 'Manage the list of gyms and equipment on the Equipment page.')}
+      </p>
     </div>
   )
 }

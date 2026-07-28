@@ -11,6 +11,8 @@ import TrainerCalendar from './pages/trainer/TrainerCalendar'
 import Inquiries from './pages/trainer/Inquiries'
 import TrainingPlans from './pages/trainer/TrainingPlans'
 import Teams from './pages/trainer/Teams'
+import Equipment from './pages/trainer/Equipment'
+import TrainerContentLibrary from './pages/trainer/ContentLibrary'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ClientCalendar from './pages/client/ClientCalendar'
 import WorkoutDetail from './pages/client/WorkoutDetail'
@@ -19,6 +21,7 @@ import Nutrition from './pages/client/Nutrition'
 import History from './pages/client/History'
 import Messages from './pages/client/Messages'
 import Billing from './pages/client/Billing'
+import ClientContentLibrary from './pages/client/ContentLibrary'
 
 const trainerLinks = [
   { to: '/trainer/calendar', label: 'Kalendář', labelEn: 'Calendar' },
@@ -26,6 +29,8 @@ const trainerLinks = [
   { to: '/trainer/plans', label: 'Plány', labelEn: 'Plans' },
   { to: '/trainer/teams', label: 'Týmy', labelEn: 'Teams' },
   { to: '/trainer/exercises', label: 'Cviky', labelEn: 'Exercises' },
+  { to: '/trainer/equipment', label: 'Vybavení', labelEn: 'Equipment' },
+  { to: '/trainer/content', label: 'Knihovna', labelEn: 'Library' },
   { to: '/trainer/inquiries', label: 'Poptávky', labelEn: 'Inquiries' },
 ]
 
@@ -35,6 +40,7 @@ const clientLinks = [
   { to: '/client/history', label: 'Historie', labelEn: 'History' },
   { to: '/client/progress', label: 'Progres', labelEn: 'Progress' },
   { to: '/client/nutrition', label: 'Výživa', labelEn: 'Nutrition' },
+  { to: '/client/library', label: 'Knihovna', labelEn: 'Library' },
   { to: '/client/messages', label: 'Zprávy', labelEn: 'Messages' },
   { to: '/client/billing', label: 'Platby', labelEn: 'Billing' },
 ]
@@ -59,6 +65,8 @@ function App() {
         <Route path="plans" element={<TrainingPlans />} />
         <Route path="teams" element={<Teams />} />
         <Route path="exercises" element={<Exercises />} />
+        <Route path="equipment" element={<Equipment />} />
+        <Route path="content" element={<TrainerContentLibrary />} />
         <Route path="inquiries" element={<Inquiries />} />
       </Route>
 
@@ -76,6 +84,7 @@ function App() {
         <Route path="history" element={<History />} />
         <Route path="progress" element={<Progress />} />
         <Route path="nutrition" element={<Nutrition />} />
+        <Route path="library" element={<ClientContentLibrary />} />
         <Route path="messages" element={<Messages />} />
         <Route path="billing" element={<Billing />} />
       </Route>

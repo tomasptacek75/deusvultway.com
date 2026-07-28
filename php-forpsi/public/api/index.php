@@ -142,7 +142,11 @@ function clientSummary(PDO $pdo, int $clientId): array
 
 if ($method === 'GET' && $path === '/clients') {
     requireRole($config, 'trainer');
-    $clients = fetchAll($pdo, "SELECT id, email, phone, display_name, created_at, (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE role='client' AND active=1 ORDER BY display_name");
+    $sql = "SELECT id, email, phone, display_name, client_type, created_at, (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE role='client' AND active=1";
+    $params = [];
+    if (!empty($_GET['client_type'])) { $sql .= " AND client_type=?"; $params[] = $_GET['client_type']; }
+    $sql .= " ORDER BY display_name";
+    $clients = fetchAll($pdo, $sql, $params);
     foreach ($clients as &$c) { $c['summary'] = clientSummary($pdo, (int)$c['id']); }
     unset($c);
     jsonResponse($clients);
@@ -151,7 +155,7 @@ if ($method === 'GET' && $path === '/clients') {
 if ($method === 'GET' && count($seg) === 2 && $seg[0] === 'clients') {
     $auth = requireAuth($config);
     assertClientAccess($pdo, $auth, (int)$seg[1]);
-    $c = fetchOne($pdo, "SELECT id, email, display_name, (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE id=? AND role='client'", [(int)$seg[1]]);
+    $c = fetchOne($pdo, "SELECT id, email, phone, display_name, client_type, (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE id=? AND role='client'", [(int)$seg[1]]);
     if (!$c) jsonResponse(['detail' => 'Klient nenalezen'], 404);
     jsonResponse($c);
 }
@@ -162,10 +166,180 @@ if ($method === 'GET' && count($seg) === 3 && $seg[0] === 'clients' && $seg[2] =
     jsonResponse(clientSummary($pdo, (int)$seg[1]));
 }
 
+// POST /clients — založení nového klienta (dřív neexistovalo vůbec, veškerá klientela vznikala
+// jen ručním seedem v db.php). Bez hesla, stejný passwordless POC model jako zbytek appky
+// (viz demo-login) — nový klient se hned objeví v /auth/people a jde se jím přihlásit.
+if ($method === 'POST' && $path === '/clients') {
+    requireRole($config, 'trainer');
+    $b = jsonInput();
+    $email = trim((string)($b['email'] ?? ''));
+    $name = trim((string)($b['display_name'] ?? ''));
+    if ($email === '' || $name === '') jsonResponse(['detail' => 'email a display_name jsou povinné'], 400);
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jsonResponse(['detail' => 'Neplatný e-mail'], 400);
+    if (fetchOne($pdo, "SELECT id FROM users WHERE email=?", [$email])) {
+        jsonResponse(['detail' => 'Klient s tímto e-mailem už existuje'], 409);
+    }
+    $clientType = in_array($b['client_type'] ?? 'personal', ['personal', 'portal'], true) ? $b['client_type'] : 'personal';
+    $id = insertRow($pdo, 'users', [
+        'email' => $email, 'role' => 'client', 'display_name' => $name,
+        'phone' => $b['phone'] ?? null, 'client_type' => $clientType,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT id, email, phone, display_name, client_type, created_at FROM users WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'clients') {
+    requireRole($config, 'trainer');
+    $existing = fetchOne($pdo, "SELECT * FROM users WHERE id=? AND role='client'", [(int)$seg[1]]);
+    if (!$existing) jsonResponse(['detail' => 'Klient nenalezen'], 404);
+    $b = jsonInput();
+    $clientType = isset($b['client_type']) && in_array($b['client_type'], ['personal', 'portal'], true) ? $b['client_type'] : $existing['client_type'];
+    $pdo->prepare("UPDATE users SET display_name=?, phone=?, client_type=? WHERE id=?")->execute([
+        $b['display_name'] ?? $existing['display_name'], $b['phone'] ?? $existing['phone'], $clientType, (int)$seg[1],
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT id, email, phone, display_name, client_type, created_at FROM users WHERE id=?", [(int)$seg[1]]));
+}
+
 if ($method === 'DELETE' && count($seg) === 2 && $seg[0] === 'clients') {
     requireRole($config, 'trainer');
     $pdo->prepare("UPDATE users SET active=0 WHERE id=? AND role='client'")->execute([(int)$seg[1]]);
     jsonResponse(['ok' => true]);
+}
+
+// ── VYBAVENÍ / POSILOVNY (portál) — spravovaný seznam, hide-not-delete přes `active` ──
+
+if ($method === 'GET' && $path === '/equipment-options') {
+    $auth = requireAuth($config);
+    // Jen jeden trenér v celé appce (David) — klient nemá vlastní trainer_id sloupec, takže
+    // pro čtení stačí vzít jediného existujícího trenéra místo řešení víc-trenérského případu.
+    if ($auth['role'] === 'trainer' && !empty($_GET['include_inactive'])) {
+        jsonResponse(fetchAll($pdo, "SELECT * FROM equipment_options WHERE trainer_id=? ORDER BY kind, order_num, name", [$auth['user_id']]));
+    }
+    $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
+    $trainerId = $trainer ? (int)$trainer['id'] : 0;
+    jsonResponse(fetchAll($pdo, "SELECT * FROM equipment_options WHERE trainer_id=? AND active=1 ORDER BY kind, order_num, name", [$trainerId]));
+}
+
+if ($method === 'POST' && $path === '/equipment-options') {
+    $auth = requireRole($config, 'trainer');
+    $b = jsonInput();
+    if (empty($b['name'])) jsonResponse(['detail' => 'name je povinné'], 400);
+    $id = insertRow($pdo, 'equipment_options', [
+        'trainer_id' => $auth['user_id'], 'name' => $b['name'], 'name_en' => $b['name_en'] ?? null,
+        'kind' => $b['kind'] ?? 'equipment', 'order_num' => $b['order_num'] ?? 0,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM equipment_options WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'equipment-options') {
+    requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $existing = fetchOne($pdo, "SELECT * FROM equipment_options WHERE id=?", [$id]);
+    if (!$existing) jsonResponse(['detail' => 'Vybavení nenalezeno'], 404);
+    $b = jsonInput();
+    $pdo->prepare("UPDATE equipment_options SET name=?, name_en=?, kind=?, order_num=?, active=? WHERE id=?")->execute([
+        $b['name'] ?? $existing['name'], $b['name_en'] ?? $existing['name_en'], $b['kind'] ?? $existing['kind'],
+        $b['order_num'] ?? $existing['order_num'], isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM equipment_options WHERE id=?", [$id]));
+}
+
+if ($method === 'GET' && count($seg) === 3 && $seg[0] === 'clients' && $seg[2] === 'equipment') {
+    $auth = requireAuth($config);
+    assertClientAccess($pdo, $auth, (int)$seg[1]);
+    jsonResponse(fetchAll($pdo, "
+        SELECT ce.id AS client_equipment_id, eo.*
+        FROM client_equipment ce JOIN equipment_options eo ON eo.id = ce.equipment_id
+        WHERE ce.client_id=? ORDER BY eo.kind, eo.order_num, eo.name
+    ", [(int)$seg[1]]));
+}
+
+if ($method === 'POST' && count($seg) === 3 && $seg[0] === 'clients' && $seg[2] === 'equipment') {
+    $auth = requireAuth($config);
+    assertClientAccess($pdo, $auth, (int)$seg[1]);
+    $b = jsonInput();
+    if (empty($b['equipment_id'])) jsonResponse(['detail' => 'equipment_id je povinné'], 400);
+    try {
+        insertRow($pdo, 'client_equipment', ['client_id' => (int)$seg[1], 'equipment_id' => (int)$b['equipment_id']]);
+    } catch (\Exception) {} // UNIQUE(client_id, equipment_id) — už zaškrtnuto, no-op
+    jsonResponse(['ok' => true], 201);
+}
+
+if ($method === 'DELETE' && count($seg) === 4 && $seg[0] === 'clients' && $seg[2] === 'equipment') {
+    $auth = requireAuth($config);
+    assertClientAccess($pdo, $auth, (int)$seg[1]);
+    $pdo->prepare("DELETE FROM client_equipment WHERE client_id=? AND equipment_id=?")->execute([(int)$seg[1], (int)$seg[3]]);
+    jsonResponse(['ok' => true]);
+}
+
+// ── KNIHOVNA OBSAHU (portál) — videa/strava/playlisty, viditelné všem klientům ──
+
+if ($method === 'GET' && $path === '/content-sections') {
+    $auth = requireAuth($config);
+    $includeInactive = $auth['role'] === 'trainer' && !empty($_GET['include_inactive']);
+    $sectionSql = "SELECT * FROM content_sections" . ($includeInactive ? "" : " WHERE active=1") . " ORDER BY order_num, id";
+    $sections = fetchAll($pdo, $sectionSql);
+    foreach ($sections as &$s) {
+        $itemSql = "SELECT * FROM content_items WHERE section_id=?" . ($includeInactive ? "" : " AND active=1") . " ORDER BY order_num, id";
+        $s['items'] = fetchAll($pdo, $itemSql, [(int)$s['id']]);
+    }
+    unset($s);
+    jsonResponse($sections);
+}
+
+if ($method === 'POST' && $path === '/content-sections') {
+    $auth = requireRole($config, 'trainer');
+    $b = jsonInput();
+    if (empty($b['title'])) jsonResponse(['detail' => 'title je povinné'], 400);
+    $id = insertRow($pdo, 'content_sections', [
+        'trainer_id' => $auth['user_id'], 'title' => $b['title'], 'title_en' => $b['title_en'] ?? null,
+        'order_num' => $b['order_num'] ?? 0,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM content_sections WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'content-sections') {
+    $auth = requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $existing = fetchOne($pdo, "SELECT * FROM content_sections WHERE id=? AND trainer_id=?", [$id, $auth['user_id']]);
+    if (!$existing) jsonResponse(['detail' => 'Sekce nenalezena'], 404);
+    $b = jsonInput();
+    $pdo->prepare("UPDATE content_sections SET title=?, title_en=?, order_num=?, active=? WHERE id=?")->execute([
+        $b['title'] ?? $existing['title'], $b['title_en'] ?? $existing['title_en'],
+        $b['order_num'] ?? $existing['order_num'], isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM content_sections WHERE id=?", [$id]));
+}
+
+if ($method === 'POST' && count($seg) === 3 && $seg[0] === 'content-sections' && $seg[2] === 'items') {
+    $auth = requireRole($config, 'trainer');
+    $sectionId = (int)$seg[1];
+    $section = fetchOne($pdo, "SELECT * FROM content_sections WHERE id=? AND trainer_id=?", [$sectionId, $auth['user_id']]);
+    if (!$section) jsonResponse(['detail' => 'Sekce nenalezena'], 404);
+    $b = jsonInput();
+    if (empty($b['title'])) jsonResponse(['detail' => 'title je povinné'], 400);
+    $id = insertRow($pdo, 'content_items', [
+        'section_id' => $sectionId, 'type' => $b['type'] ?? 'video', 'title' => $b['title'], 'title_en' => $b['title_en'] ?? null,
+        'body' => $b['body'] ?? null, 'body_en' => $b['body_en'] ?? null, 'url' => $b['url'] ?? null,
+        'order_num' => $b['order_num'] ?? 0,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM content_items WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'content-items') {
+    $auth = requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $existing = fetchOne($pdo, "
+        SELECT ci.* FROM content_items ci JOIN content_sections cs ON cs.id = ci.section_id
+        WHERE ci.id=? AND cs.trainer_id=?
+    ", [$id, $auth['user_id']]);
+    if (!$existing) jsonResponse(['detail' => 'Položka nenalezena'], 404);
+    $b = jsonInput();
+    $pdo->prepare("UPDATE content_items SET type=?, title=?, title_en=?, body=?, body_en=?, url=?, order_num=?, active=? WHERE id=?")->execute([
+        $b['type'] ?? $existing['type'], $b['title'] ?? $existing['title'], $b['title_en'] ?? $existing['title_en'],
+        $b['body'] ?? $existing['body'], $b['body_en'] ?? $existing['body_en'], $b['url'] ?? $existing['url'],
+        $b['order_num'] ?? $existing['order_num'], isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM content_items WHERE id=?", [$id]));
 }
 
 // ── CVIKY (knihovna trenéra) ────────────────────────────────────────
@@ -1055,7 +1229,7 @@ if ($method === 'POST' && $path === '/subscriptions') {
     $id = insertRow($pdo, 'subscriptions', [
         'client_id' => $clientId, 'plan_name' => $b['plan_name'], 'price_kc' => (int)$b['price_kc'],
         'billing_period' => $b['billing_period'] ?? 'monthly', 'status' => 'active',
-        'current_period_end' => $b['current_period_end'] ?? null,
+        'current_period_end' => $b['current_period_end'] ?? null, 'tier' => $b['tier'] ?? null,
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM subscriptions WHERE id=?", [$id]), 201);
 }
@@ -1066,10 +1240,10 @@ if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'subscriptions') {
     if (!$existing) jsonResponse(['detail' => 'Předplatné nenalezeno'], 404);
     assertClientAccess($pdo, $auth, (int)$existing['client_id']);
     $b = jsonInput();
-    $pdo->prepare("UPDATE subscriptions SET plan_name=?, price_kc=?, billing_period=?, status=?, current_period_end=? WHERE id=?")->execute([
+    $pdo->prepare("UPDATE subscriptions SET plan_name=?, price_kc=?, billing_period=?, status=?, current_period_end=?, tier=? WHERE id=?")->execute([
         $b['plan_name'] ?? $existing['plan_name'], $b['price_kc'] ?? $existing['price_kc'],
         $b['billing_period'] ?? $existing['billing_period'], $b['status'] ?? $existing['status'],
-        $b['current_period_end'] ?? $existing['current_period_end'], (int)$seg[1],
+        $b['current_period_end'] ?? $existing['current_period_end'], $b['tier'] ?? $existing['tier'], (int)$seg[1],
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM subscriptions WHERE id=?", [(int)$seg[1]]));
 }

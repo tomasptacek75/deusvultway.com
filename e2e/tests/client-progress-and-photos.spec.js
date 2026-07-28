@@ -20,7 +20,12 @@ test.describe('Klient — progres, výživa, platby a fotky', () => {
 
     await page.getByPlaceholder(/Váha \(kg\)/i).fill('79.4')
     await page.getByRole('button', { name: /Uložit záznam|Save entry/ }).click()
-    await expect(page.getByText('79.4 kg')).toBeVisible()
+    // body_metrics má UNIQUE(client_id, date) a POST dělá upsert, takže opakované běhy ve
+    // STEJNÝ den se nehromadí — ale běhy napříč RŮZNÝMI dny (tenhle test běžel v tomhle
+    // sezení přes několik různých kalendářních dat) mají každý svůj vlastní řádek se stejnou
+    // váhou 79.4 kg, což by časem narazilo na strict-mode chybu. .first() stačí, ověřuje jen
+    // že se záznam uložil, ne kolikátý v pořadí je.
+    await expect(page.getByText('79.4 kg').first()).toBeVisible()
   })
 
   test('klient nahraje a smaže fotku pokroku', async ({ page, request }) => {

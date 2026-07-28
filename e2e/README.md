@@ -33,6 +33,13 @@ disku). Účel: gate před produkčním deployem — viz `deploy_gated.py` v roo
   cviku) a tlačítko "Stáhnout moje data (GDPR export)" na obou dashboardech; UI pro tohle dvoje
   chybělo do 2026-07-24 přesto, že backend endpointy existovaly odjakživa — dostavěno a otestováno
   ve stejný den.
+- `portal-client-onboarding.spec.js` — založení nového klienta (osobní i portálový) přes
+  formulář na `TrainerDashboard.jsx` (`POST /clients` dřív neexistoval vůbec), badge, přepnutí
+  typu na `ClientDetail.jsx`, okamžité přihlášení přes demo-login.
+- `equipment-catalog.spec.js` — spravovaný seznam vybavení/posiloven (`Equipment.jsx`): CRUD,
+  skrytí/odkrytí (ne smazání), přiřazení konkrétnímu klientovi na záložce Vybavení.
+- `content-library.spec.js` — obsahová knihovna (video ukázky, strava, playlisty): sekce+položka
+  vidí osobní i portálový klient stejně, skrytí zmizí jen z klientského pohledu.
 
 Ostatní testy se přihlašují rychle přes API + localStorage (`helpers/auth.js`), ne klikáním
 přes `/login` — jen `smoke.spec.js` klikací flow testuje samostatně.
@@ -71,3 +78,16 @@ report.
   několika bězích spadnou na strict-mode chybě (viz historie commitů).
 - **Testovací prostředí je jednosměrné** — tahle sada se pouští jen proti `test.bloodandguts.cz`
   nebo lokálnímu dev serveru, nikdy proti produkci.
+- **`hasText` přestane matchovat, když text zmizí do hodnoty `<input>`** — pokud řádek po kliknutí
+  na "upravit" přejde do editačního režimu (text nahrazený `<input value=...>`), locator postavený
+  na `hasText: text` už tu položku znovu nenajde (input value se nepočítá jako textContent).
+  Zachytit element PŘED přepnutím do editace (na kliknutí `getByRole('button')` to stačí), na
+  samotný input mířit jinak (pozicí, nebo přes obalující strukturu), ne stejným `hasText` znovu.
+- **Plně řízený (controlled) checkbox bez optimistického update umí "zablikat" zpět** — mezi
+  kliknutím a dokončením async PUT/POST + reload se `checked` prop na moment vrátí ke staré
+  hodnotě. Přísné `.check()`/`.uncheck()` (vyžadují stabilní změnu hned po akci) na tohle
+  spolehlivě hlásí "Clicking the checkbox did not change its state". Fix: `.click()` +
+  `expect(locator).toBeChecked()`/`.not.toBeChecked()`, což počká/opakuje, dokud se to
+  neustálí (viz `equipment-catalog.spec.js`).
+- **Playwright nemá `getByDisplayValue`** (to je Testing Library API, ne Playwright) — pro cílení
+  na `<input>` podle aktuální hodnoty použij pozici/scoping, ne neexistující metodu.

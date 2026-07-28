@@ -35,6 +35,18 @@ export async function getSecondClient(request) {
   return clients[1]
 }
 
+// GET /auth/people nevrací client_type (jen id/role/display_name) — pro filtrování podle typu
+// je potřeba trenérský GET /clients?client_type=. seedPortalDemoData v db.php idempotentně
+// přeznačuje pár seedovaných klientů na 'portal', takže tenhle helper má vždy co najít.
+export async function getClientByType(request, trainerId, clientType) {
+  const headers = await authHeader(request, trainerId)
+  const res = await request.get('/api/clients', { headers, params: { client_type: clientType } })
+  expect(res.ok(), `GET /api/clients?client_type=${clientType} by mělo uspět`).toBeTruthy()
+  const clients = await res.json()
+  expect(clients.length, `seedovaná data musí obsahovat aspoň jednoho klienta typu ${clientType}`).toBeGreaterThan(0)
+  return clients[0]
+}
+
 // POST /auth/demo-login nevyžaduje heslo (záměrný POC stav) — vydá JWT pro libovolné user_id.
 // Testy toho využívají pro rychlé API-only přihlášení bez klikání přes /login formulář.
 export async function apiToken(request, userId) {

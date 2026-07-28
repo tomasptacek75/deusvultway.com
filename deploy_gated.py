@@ -79,7 +79,12 @@ def main():
         sys.exit(1)
 
     p("\n== 3/4 e2e testy proti test.bloodandguts.cz ==")
-    e2e_rc = run([npm, 'test'], cwd='e2e')
+    # `npm test` (spousti 'playwright test' skrz package.json) na tomhle Windows setupu
+    # nespolehlive resolvuje binarku playwright, kdyz se spousti pres subprocess.run z Pythonu
+    # (funguje v interaktivnim shellu, ale ne takhle) -- primy zapis přes node cli.js obchazi
+    # tenhle problem uplne a je to presne ten prikaz, kterym se testy v tomhle repu spolehlive
+    # spoustely rucne po celou dobu vyvoje (viz historie commitu e2e/).
+    e2e_rc = run(['node', 'node_modules/@playwright/test/cli.js', 'test'], cwd='e2e')
     if e2e_rc != 0:
         p(f"\ne2e testy selhaly (exit {e2e_rc}) -- HTML report: e2e/playwright-report/index.html")
         if not args.keep_going:

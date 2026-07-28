@@ -124,3 +124,58 @@ SQLite DB. Known scope gaps below apply to both environments equally, not hidden
   weights to the nearest 2.5 kg and requires the trainer to have recorded at least one 1RM for a
   client/exercise pair beforehand — otherwise it generates the set with no target weight (client
   fills it in, same as a manual-progression block).
+
+## Portal client extension (added 2026-07-28)
+
+David asked for a "portál" extension: a self-serve tier for clients who tried 1:1 training but
+can't currently afford it — they get an assigned plan (adapted to their equipment/environment), a
+content library (video/nutrition/playlists), and progress tracking, but no personal 1:1 time.
+Existing "personal" clients (hourly sessions, doubles) are completely unaffected. Implemented after
+a plan-mode design session that found most of what the spec asked for was already built:
+
+- **`users.client_type`** (`'personal'`/`'portal'`, default personal) — a free-text label like
+  `role`, no DB enum. Used only for the trainer's own filtering/badge UI on `TrainerDashboard.jsx`
+  and the editable select on `ClientDetail.jsx` — it does **not** gate any feature. Messaging and
+  the content library were both explicitly confirmed (by the user, during design) as identical for
+  every client regardless of type, so there is currently nothing concrete for `client_type` or
+  `subscriptions.tier` to actually restrict — don't add gating logic speculatively; wait for David
+  to decide what (if anything) should differ between the 3 pricing tiers.
+- **`POST /clients` / `PUT /clients/{id}`** — this app had **no way at all** to create a new client
+  before this (every user, including all 23 demo clients, only ever existed via hardcoded seeds in
+  `db.php`). This was the first blocking piece; the "+ Nový klient" form on `TrainerDashboard.jsx`
+  is now the only place client accounts get created (still passwordless, matching the existing
+  demo-login POC model — no signup/invite flow was built).
+- **`equipment_options` + `client_equipment`** — a trainer-managed catalog of gyms/equipment
+  (`kind` = `'gym'`|`'equipment'`), deliberately a **managed select list, not free text** (contrast
+  with the existing free-text `workouts.location`/`plan_blocks.default_location`). Managed on
+  `frontend/src/pages/trainer/Equipment.jsx`, assigned per-client on a new "Vybavení" tab in
+  `ClientDetail.jsx`. Exists so David can see a client's real training environment before designing
+  their plan — there's no automated plan-adaptation logic, it's informational context for David.
+- **`content_sections` + `content_items`** — a generic, extensible content library (`type`:
+  `video`/`article`/`playlist`/anything else added later), explicitly visible to **every** client,
+  not portal-exclusive. Trainer management page `trainer/ContentLibrary.jsx`, client-facing
+  read-only page `client/ContentLibrary.jsx` (`/client/library`). This is separate from
+  `exercises.video_url` (still per-exercise, single-video, untouched) — the library is for
+  training-style videos, nutrition write-ups, playlists, "whatever else David wants," not exercise
+  demos.
+- **`subscriptions.tier`** — free-text scaffold column (mirrors `plan_name`'s existing pattern),
+  surfaced as an optional input in `ClientDetail.jsx`'s Billing tab. `Landing.jsx`'s `TIERS` array
+  (still placeholder: Základ/Pokročilý/Elite, 990/1690/2690 Kč) is the obvious eventual public face
+  of these tiers, but isn't wired to real subscription data yet — David hasn't supplied final tier
+  names/prices/differentiators.
+- **Every new hide-able entity follows the existing `users.active` precedent exactly**: an
+  `active INTEGER DEFAULT 1` column, a `PUT` toggle endpoint, and client-facing reads filtered to
+  `active=1` while trainer management screens show everything (with `?include_inactive=1`). No
+  `DELETE` endpoint exists for `equipment_options`, `content_sections`, or `content_items` —
+  hiding, never deleting, is a hard requirement from the spec, not a nice-to-have.
+- **What needed zero changes**: plan assignment/generation (`training_plans`/`plan_blocks`/
+  `generate-workouts` already fully supported a single individual client, not just teams —
+  `planTargetClientIds()` checks `client_id` before falling back to `team_id`), progress tracking,
+  messaging, and calendar privacy between clients (`assertClientAccess` already isolates every
+  client from every other client's data). This was the biggest scope reduction in the whole design.
+- **`equipment_options`/`content_sections`/`content_items` currently only have demo placeholder
+  data** (a handful of gyms/equipment items, 3 content sections with 1 item each) — a PDF was
+  generated and handed to David (`Portal - prehled funkci pro Davida.pdf`, repo root, not
+  committed to git — personal deliverable, not project source) listing what still needs his input:
+  real tier differentiators, real gym/equipment list, real library content, final landing-page
+  pricing copy.

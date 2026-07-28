@@ -71,7 +71,16 @@ export default function ClientDetail() {
                 <option value="portal">{t('Portál', 'Portal')}</option>
               </select>
             </div>
-            <div className="text-sm text-neutral-500">{client.email}</div>
+            <div className="text-sm text-neutral-500 flex flex-col gap-0.5">
+              <a href={`mailto:${client.email}`} className="hover:text-white underline-offset-2 hover:underline">
+                {client.email}
+              </a>
+              {client.phone && (
+                <a href={`tel:${client.phone}`} className="hover:text-white underline-offset-2 hover:underline">
+                  {client.phone}
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}

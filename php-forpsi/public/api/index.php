@@ -1429,22 +1429,50 @@ if ($method === 'GET' && $path === '/me/export') {
 // ── HLASOVÝ TRÉNINKOVÝ DENÍK (muj.bloodandguts.cz) ────────────────────
 // Samostatný produkt pro roli 'diary' — žádný trenér, žádný vztah k users.role='client'.
 
+function groupDiarySetsByExercise(array $sets): array
+{
+    $byExercise = [];
+    foreach ($sets as $s) {
+        $byExercise[$s['order_num']]['name'] ??= $s['exercise_name'];
+        $byExercise[$s['order_num']]['type'] ??= $s['exercise_type'] ?? 'strength';
+        $byExercise[$s['order_num']]['sets'][] = [
+            'set_number' => (int)$s['set_number'], 'reps' => $s['reps'] !== null ? (int)$s['reps'] : null,
+            'weight_kg' => $s['weight_kg'] !== null ? (float)$s['weight_kg'] : null,
+            'duration_min' => $s['duration_min'] !== null ? (float)$s['duration_min'] : null,
+            'distance_km' => $s['distance_km'] !== null ? (float)$s['distance_km'] : null,
+        ];
+    }
+    ksort($byExercise);
+    return array_values($byExercise);
+}
+
 function fetchDiaryEntryWithSets(PDO $pdo, int $entryId): ?array
 {
     $entry = fetchOne($pdo, "SELECT * FROM diary_entries WHERE id=?", [$entryId]);
     if (!$entry) return null;
     $sets = fetchAll($pdo, "SELECT * FROM diary_sets WHERE entry_id=? ORDER BY order_num, set_number", [$entryId]);
-    $byExercise = [];
-    foreach ($sets as $s) {
-        $byExercise[$s['order_num']]['name'] ??= $s['exercise_name'];
-        $byExercise[$s['order_num']]['sets'][] = [
-            'set_number' => (int)$s['set_number'], 'reps' => $s['reps'] !== null ? (int)$s['reps'] : null,
-            'weight_kg' => $s['weight_kg'] !== null ? (float)$s['weight_kg'] : null,
-        ];
-    }
-    ksort($byExercise);
-    $entry['exercises'] = array_values($byExercise);
+    $entry['exercises'] = groupDiarySetsByExercise($sets);
     return $entry;
+}
+
+// Hromadná varianta fetchDiaryEntryWithSets() pro seznam všech záznamů uživatele — 2 dotazy
+// celkem místo 1+2N (dřív se volalo fetchDiaryEntryWithSets() zvlášť pro každý řádek).
+function fetchDiaryEntriesForUser(PDO $pdo, int $userId): array
+{
+    $entries = fetchAll($pdo, "SELECT * FROM diary_entries WHERE user_id=? ORDER BY recorded_at DESC, id DESC", [$userId]);
+    if (empty($entries)) return [];
+    $ids = array_column($entries, 'id');
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $allSets = fetchAll($pdo, "SELECT * FROM diary_sets WHERE entry_id IN ($placeholders) ORDER BY entry_id, order_num, set_number", $ids);
+    $setsByEntry = [];
+    foreach ($allSets as $s) {
+        $setsByEntry[$s['entry_id']][] = $s;
+    }
+    foreach ($entries as &$entry) {
+        $entry['exercises'] = groupDiarySetsByExercise($setsByEntry[$entry['id']] ?? []);
+    }
+    unset($entry);
+    return $entries;
 }
 
 function replaceDiarySets(PDO $pdo, int $entryId, array $exercises): void
@@ -1454,12 +1482,15 @@ function replaceDiarySets(PDO $pdo, int $entryId, array $exercises): void
     foreach ($exercises as $ex) {
         $name = trim((string)($ex['name'] ?? ''));
         if ($name === '') { $order++; continue; }
+        $type = in_array($ex['type'] ?? null, ['strength', 'cardio'], true) ? $ex['type'] : 'strength';
         foreach ($ex['sets'] ?? [] as $set) {
             insertRow($pdo, 'diary_sets', [
-                'entry_id' => $entryId, 'exercise_name' => $name, 'order_num' => $order,
+                'entry_id' => $entryId, 'exercise_name' => $name, 'exercise_type' => $type, 'order_num' => $order,
                 'set_number' => (int)($set['set_number'] ?? 1),
                 'reps' => isset($set['reps']) ? (int)$set['reps'] : null,
                 'weight_kg' => isset($set['weight_kg']) ? (float)$set['weight_kg'] : null,
+                'duration_min' => isset($set['duration_min']) ? (float)$set['duration_min'] : null,
+                'distance_km' => isset($set['distance_km']) ? (float)$set['distance_km'] : null,
             ]);
         }
         $order++;
@@ -1611,8 +1642,7 @@ if ($method === 'POST' && $path === '/diary/entries') {
 
 if ($method === 'GET' && $path === '/diary/entries') {
     $auth = requireRole($config, 'diary');
-    $ids = fetchAll($pdo, "SELECT id FROM diary_entries WHERE user_id=? ORDER BY recorded_at DESC, id DESC", [$auth['user_id']]);
-    jsonResponse(array_map(fn($r) => fetchDiaryEntryWithSets($pdo, (int)$r['id']), $ids));
+    jsonResponse(fetchDiaryEntriesForUser($pdo, (int)$auth['user_id']));
 }
 
 if ($method === 'GET' && count($seg) === 3 && $seg[0] === 'diary' && $seg[1] === 'entries') {

@@ -10,7 +10,7 @@ export default function DiaryManualEntry() {
   const [recordedAt, setRecordedAt] = useState(new Date().toISOString().slice(0, 10))
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
-  const [exercises, setExercises] = useState([{ name: '', sets: [{ set_number: 1, reps: null, weight_kg: null }] }])
+  const [exercises, setExercises] = useState([{ name: '', type: 'strength', sets: [{ set_number: 1, reps: null, weight_kg: null, duration_min: null, distance_km: null }] }])
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)

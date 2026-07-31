@@ -1,19 +1,32 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock, NotebookPen } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
 import DiaryBackLink from '../../components/DiaryBackLink'
+import { formatDiarySet } from '../../utils/diary'
 
 export default function DiaryHistory() {
   const [entries, setEntries] = useState(null)
   const [expanded, setExpanded] = useState(null)
   const [editing, setEditing] = useState(null)
+  const [searchParams] = useSearchParams()
 
   function load() {
     apiClient.get('/diary/entries').then((r) => setEntries(r.data))
   }
   useEffect(load, [])
+
+  // Odkaz z Přehledu (Poslední záznamy) míří sem s ?entry=ID — rovnou ho rozbalíme a
+  // odscrollujeme na něj, ať se k němu uživatel nemusí ručně proklikávat seznamem.
+  useEffect(() => {
+    const entryId = Number(searchParams.get('entry'))
+    if (!entryId || !entries) return
+    setExpanded(entryId)
+    const el = document.getElementById(`diary-entry-${entryId}`)
+    if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }, [searchParams, entries])
 
   async function saveEdits(entry) {
     const { data } = await apiClient.put(`/diary/entries/${entry.id}`, {
@@ -39,7 +52,7 @@ export default function DiaryHistory() {
 
       <div className="space-y-2">
         {entries?.map((e) => (
-          <div key={e.id} className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden">
+          <div key={e.id} id={`diary-entry-${e.id}`} className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden scroll-mt-4">
             <button
               onClick={() => setExpanded(expanded === e.id ? null : e.id)}
               className="w-full flex items-center justify-between p-4 text-left"
@@ -112,7 +125,7 @@ export default function DiaryHistory() {
                       <div key={i} className="text-sm">
                         <span className="font-medium">{ex.name}</span>
                         <div className="text-xs text-neutral-400 mt-0.5">
-                          {ex.sets.map((s) => `${s.reps ?? '?'}×${s.weight_kg ?? '?'}kg`).join(', ') || 'Bez sérií'}
+                          {ex.sets.map((s) => formatDiarySet(s, ex.type)).join(', ') || 'Bez sérií'}
                         </div>
                       </div>
                     ))}

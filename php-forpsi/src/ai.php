@@ -117,21 +117,25 @@ function claudeStructureWorkout(array $config, string $transcript, array $knownE
                     'type' => 'object',
                     'properties' => [
                         'name' => ['type' => 'string'],
+                        'type' => ['type' => 'string', 'enum' => ['strength', 'cardio'], 'description' => 'strength = posilovací cvik se sériemi/opakováními/váhou; cardio = běh, kolo, veslování, plavání a podobná vytrvalostní aktivita měřená časem/vzdáleností'],
                         'sets' => [
                             'type' => 'array',
+                            'description' => 'U strength jedna položka = jedna série. U cardio typicky jedna položka za celou aktivitu (nebo víc při intervalech, např. 5× 1 km).',
                             'items' => [
                                 'type' => 'object',
                                 'properties' => [
                                     'set_number' => ['type' => 'integer'],
-                                    'reps' => ['type' => ['integer', 'null']],
-                                    'weight_kg' => ['type' => ['number', 'null']],
+                                    'reps' => ['type' => ['integer', 'null'], 'description' => 'jen strength, jinak null'],
+                                    'weight_kg' => ['type' => ['number', 'null'], 'description' => 'jen strength, jinak null'],
+                                    'duration_min' => ['type' => ['number', 'null'], 'description' => 'jen cardio — délka v minutách (desetinná čísla ok, např. 32.5), jinak null'],
+                                    'distance_km' => ['type' => ['number', 'null'], 'description' => 'jen cardio — vzdálenost v kilometrech, jinak null'],
                                 ],
-                                'required' => ['set_number', 'reps', 'weight_kg'],
+                                'required' => ['set_number', 'reps', 'weight_kg', 'duration_min', 'distance_km'],
                                 'additionalProperties' => false,
                             ],
                         ],
                     ],
-                    'required' => ['name', 'sets'],
+                    'required' => ['name', 'type', 'sets'],
                     'additionalProperties' => false,
                 ],
             ],
@@ -144,16 +148,22 @@ function claudeStructureWorkout(array $config, string $transcript, array $knownE
     $weekdays = [1 => 'pondělí', 2 => 'úterý', 3 => 'středa', 4 => 'čtvrtek', 5 => 'pátek', 6 => 'sobota', 7 => 'neděle'];
     $today = date('Y-m-d');
     $todayLabel = "{$weekdays[(int)date('N')]} {$today}";
-    $system = 'Jsi asistent, který převádí český mluvený přepis silového tréninku na strukturovaná data. '
+    $system = 'Jsi asistent, který převádí český mluvený přepis tréninku na strukturovaná data. '
+        . 'Trénink může kombinovat posilovací cviky (strength — série/opakování/váha) a vytrvalostní '
+        . 'aktivity jako běh, kolo, veslování, plavání, chůze (cardio — délka v minutách a/nebo '
+        . 'vzdálenost v kilometrech). Každý cvik/aktivitu zařaď do pole "type" podle toho, co to je. '
+        . 'U strength vyplň reps a weight_kg, duration_min a distance_km nech null. U cardio naopak '
+        . 'vyplň duration_min a/nebo distance_km (podle toho, co uživatel řekl — třeba jen čas, jen '
+        . 'vzdálenost, nebo obojí) a reps/weight_kg nech null. '
         . "Dnešní datum je {$todayLabel}. Přepis může být nahraný kdykoli po tréninku, ne nutně "
         . 've stejný den — pokud uživatel zmíní, kdy cvičil (explicitně datem/dnem v týdnu, nebo '
         . 'relativně: včera, předevčírem, minulé pondělí apod.), přepočítej to na konkrétní datum '
         . 'vzhledem k dnešnímu dni výše a použij ho v poli "date". Teprve pokud přepis den vůbec '
         . 'nezmiňuje, nech "date" jako null (appka pak sama doplní dnešek jako výchozí). '
-        . 'Váhy jsou v kilogramech i bez uvedení jednotky. Pokud uživatel zmíní cvik, který se podobá '
-        . 'jednomu z jeho známých cviků, použij přesně ten stejný název (sjednocení historie). '
+        . 'Váhy jsou v kilogramech i bez uvedení jednotky. Pokud uživatel zmíní cvik/aktivitu, která se '
+        . 'podobá jedné z jeho známých, použij přesně ten stejný název (sjednocení historie). '
         . 'Známé cviky uživatele: ' . (implode(', ', $knownExercises) ?: '(zatím žádné)') . '. '
-        . 'confidence nastav na "low", pokud přepisu nerozumíš nebo chybí klíčové údaje (váha/opakování).';
+        . 'confidence nastav na "low", pokud přepisu nerozumíš nebo chybí klíčové údaje.';
     $resp = anthropicMessages($config, [
         'model' => 'claude-haiku-4-5',
         'max_tokens' => 2000,

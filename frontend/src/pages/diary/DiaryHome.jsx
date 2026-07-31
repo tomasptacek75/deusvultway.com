@@ -54,12 +54,15 @@ export default function DiaryHome() {
         </div>
         <div className="space-y-2">
           {entries?.map((e) => (
-            <div key={e.id} className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <Link
+              key={e.id} to={`/diary/history?entry=${e.id}`}
+              className="block rounded-lg border border-neutral-800 bg-neutral-900 p-4 hover:border-neutral-700 transition-colors"
+            >
               <div className="text-xs text-neutral-500">{e.recorded_at}</div>
               <div className="text-sm text-neutral-300 mt-1">
                 {e.exercises.map((ex) => ex.name).join(', ') || 'Bez cviků'}
               </div>
-            </div>
+            </Link>
           ))}
           {entries?.length === 0 && (
             <p className="text-neutral-500 text-sm">Zatím žádné záznamy — namluv první trénink.</p>

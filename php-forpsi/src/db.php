@@ -377,10 +377,13 @@ function initSchema(PDO $pdo, array $config): void
         id            INTEGER PRIMARY KEY AUTOINCREMENT,
         entry_id      INTEGER NOT NULL REFERENCES diary_entries(id) ON DELETE CASCADE,
         exercise_name TEXT NOT NULL,
+        exercise_type TEXT NOT NULL DEFAULT 'strength',
         order_num     INTEGER NOT NULL DEFAULT 0,
         set_number    INTEGER NOT NULL,
         reps          INTEGER,
         weight_kg     REAL,
+        duration_min  REAL,
+        distance_km   REAL,
         note          TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_diary_sets_entry ON diary_sets(entry_id);
@@ -522,6 +525,17 @@ function initSchema(PDO $pdo, array $config): void
     try { $pdo->exec("ALTER TABLE diary_entries ADD COLUMN end_time TEXT"); } catch (\Exception) {}
 
     $pdo->exec('PRAGMA user_version = 5');
+    }
+
+    if ($schemaVersion < 6) {
+    // Kardio (běh apod.) vedle silových cviků — exercise_type rozlišuje, jestli se u dané
+    // "sady" čte reps/weight_kg (strength) nebo duration_min/distance_km (cardio). Volný text
+    // jako u ostatních *_type/role sloupců, žádný DB enum.
+    try { $pdo->exec("ALTER TABLE diary_sets ADD COLUMN exercise_type TEXT NOT NULL DEFAULT 'strength'"); } catch (\Exception) {}
+    try { $pdo->exec("ALTER TABLE diary_sets ADD COLUMN duration_min REAL"); } catch (\Exception) {}
+    try { $pdo->exec("ALTER TABLE diary_sets ADD COLUMN distance_km REAL"); } catch (\Exception) {}
+
+    $pdo->exec('PRAGMA user_version = 6');
     }
 }
 

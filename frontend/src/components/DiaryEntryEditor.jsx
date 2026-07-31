@@ -30,12 +30,12 @@ export default function DiaryEntryEditor({ exercises, onChange }) {
     <div className="space-y-4">
       {exercises.map((ex, exIdx) => (
         <div key={exIdx} className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-3 mb-3">
             <input
               value={ex.name} onChange={(ev) => updateExerciseName(exIdx, ev.target.value)}
-              className="flex-1 px-2 py-1.5 rounded-md bg-neutral-950 border border-neutral-800 font-medium"
+              className="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-neutral-950 border border-neutral-800 font-medium"
             />
-            <button onClick={() => removeExercise(exIdx)} className="text-neutral-500 hover:text-blood-400 p-1">
+            <button onClick={() => removeExercise(exIdx)} className="shrink-0 text-neutral-500 hover:text-blood-400 hover:bg-neutral-800 rounded-md p-1.5">
               <Trash2 size={16} />
             </button>
           </div>

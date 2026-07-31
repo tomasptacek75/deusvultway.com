@@ -155,8 +155,11 @@ export default function DiaryRecord() {
               >
                 {recording ? <Square className="text-white" size={28} /> : <Mic className="text-blood-500" size={28} />}
               </button>
-              <p className="text-neutral-400 text-sm mt-4">
-                {processing ? 'Zpracovávám nahrávku, chvilku strpení…' : recording ? 'Nahrávám… klepnutím ukonči' : micPermission === 'prompt' ? 'Klepnutím povolíš mikrofon a spustíš nahrávání' : 'Klepni a popiš svůj trénink'}
+              <p className="text-neutral-400 text-sm mt-4 text-center max-w-xs">
+                {processing ? 'Zpracovávám nahrávku, chvilku strpení…'
+                  : recording ? 'Nahrávám… klepnutím ukonči'
+                  : micPermission === 'granted' ? 'Klepni a popiš svůj trénink'
+                  : 'Klepni a popiš svůj trénink — poprvé si prohlížeč vyžádá povolení k mikrofonu'}
               </p>
             </>
           )}
@@ -180,12 +183,12 @@ export default function DiaryRecord() {
               <span>Čas:</span>
               <TimeSelect
                 value={entry.start_time} onChange={(v) => setEntry((prev) => ({ ...prev, start_time: v }))}
-                className="w-14 px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
+                className="w-11 px-0 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm text-center appearance-none"
               />
               <span className="text-neutral-600">–</span>
               <TimeSelect
                 value={entry.end_time} onChange={(v) => setEntry((prev) => ({ ...prev, end_time: v }))}
-                className="w-14 px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
+                className="w-11 px-0 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm text-center appearance-none"
               />
             </div>
             {entry.transcript && <div className="italic text-neutral-500">„{entry.transcript}“</div>}

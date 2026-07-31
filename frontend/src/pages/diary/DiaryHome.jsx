@@ -12,8 +12,6 @@ export default function DiaryHome() {
 
   return (
     <div>
-      <h1 className="text-3xl mb-8">Přehled</h1>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
         <div className="flex flex-col gap-2">
           <Link
@@ -23,14 +21,14 @@ export default function DiaryHome() {
             <Mic className="text-blood-500" size={28} />
             <div>
               <div className="font-semibold">Namluvit trénink</div>
-              <div className="text-sm text-neutral-400">Řekni, co jsi cvičil, AI to zapíše</div>
+              <div className="text-sm text-neutral-400">Řekni mi kdy, co a jak dlouho jsi cvičil, opakování v jednotlivých seriích, jak ti to šlo, já to zapíšu sám</div>
             </div>
           </Link>
           <Link
             to="/diary/manual"
             className="flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-200 px-1"
           >
-            <PenLine size={14} /> Nebo zapsat ručně
+            <PenLine size={14} /> Nebo to zapiš ty
           </Link>
         </div>
         <Link
@@ -40,7 +38,7 @@ export default function DiaryHome() {
           <Sparkles className="text-blood-500" size={28} />
           <div>
             <div className="font-semibold">Návrh dalšího tréninku</div>
-            <div className="text-sm text-neutral-400">Doporučíme ti, co cvičit příště</div>
+            <div className="text-sm text-neutral-400">Doporučím ti, co cvičit příště</div>
           </div>
         </Link>
       </div>

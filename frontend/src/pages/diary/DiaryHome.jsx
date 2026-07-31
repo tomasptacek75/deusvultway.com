@@ -40,7 +40,7 @@ export default function DiaryHome() {
           <Sparkles className="text-blood-500" size={28} />
           <div>
             <div className="font-semibold">Návrh dalšího tréninku</div>
-            <div className="text-sm text-neutral-400">AI doporučí, co cvičit příště</div>
+            <div className="text-sm text-neutral-400">Doporučíme ti, co cvičit příště</div>
           </div>
         </Link>
       </div>

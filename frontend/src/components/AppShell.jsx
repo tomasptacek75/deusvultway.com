@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Link, Outlet } from 'react-router-dom'
 import { Dumbbell, LogOut, Menu, X } from 'lucide-react'
-import { getUser, logout } from '../api/client'
+import { getUser, logout, homePath } from '../api/client'
 import { useLanguage } from '../i18n/LanguageContext'
 import NotificationBell from './NotificationBell'
 import LanguageToggle from './LanguageToggle'
@@ -25,10 +25,10 @@ export default function AppShell({ links, showLanguageToggle = true, showNotific
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-neutral-800 bg-neutral-950/95 sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 font-display text-lg tracking-widest shrink-0">
+          <Link to={homePath()} className="flex items-center gap-2 font-display text-lg tracking-widest shrink-0">
             <Dumbbell className="text-blood-600" size={22} />
             BLOOD<span className="text-blood-600">&amp;</span>GUTS
-          </div>
+          </Link>
 
           <nav className="hidden md:flex items-center gap-1">
             {links.map((l) => (

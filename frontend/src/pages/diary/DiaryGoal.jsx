@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Target, Check } from 'lucide-react'
 import { apiClient, getUser } from '../../api/client'
+import DiaryBackLink from '../../components/DiaryBackLink'
 
 const GOALS = [
   { value: 'sila', label: 'Síla', desc: 'Nízké opakování, vysoká váha, dlouhý odpočinek.' },
@@ -23,6 +24,7 @@ export default function DiaryGoal() {
 
   return (
     <div>
+      <DiaryBackLink />
       <h1 className="text-3xl mb-8 flex items-center gap-3">
         <Target className="text-blood-600" /> Tvůj cíl
       </h1>

@@ -18,7 +18,7 @@ export default function DiaryHome() {
             to="/diary/record"
             className="rounded-lg border border-blood-700 bg-blood-900/20 p-6 flex items-center gap-4 hover:bg-blood-900/30 transition-colors"
           >
-            <Mic className="text-blood-500" size={28} />
+            <Mic className="text-blood-500" size={32} />
             <div>
               <div className="font-semibold">Namluvit trénink</div>
               <div className="text-sm text-neutral-400">Řekni mi kdy, co a jak dlouho jsi cvičil, opakování v jednotlivých seriích, jak ti to šlo, já to zapíšu sám</div>

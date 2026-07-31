@@ -4,6 +4,7 @@ import { Mic, Square, Check, Calendar, Clock, NotebookPen, RotateCcw } from 'luc
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
+import DiaryBackLink from '../../components/DiaryBackLink'
 
 function pickMimeType() {
   const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
@@ -98,6 +99,7 @@ export default function DiaryRecord() {
 
   return (
     <div>
+      <DiaryBackLink />
       <h1 className="text-3xl mb-8">Namluvit trénink</h1>
 
       {error && <div className="text-blood-400 text-sm mb-4">{error}</div>}

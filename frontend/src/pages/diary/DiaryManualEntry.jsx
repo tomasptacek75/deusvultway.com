@@ -4,6 +4,7 @@ import { PenLine, Calendar, Clock, Check, NotebookPen } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
+import DiaryBackLink from '../../components/DiaryBackLink'
 
 export default function DiaryManualEntry() {
   const [recordedAt, setRecordedAt] = useState(new Date().toISOString().slice(0, 10))
@@ -33,6 +34,7 @@ export default function DiaryManualEntry() {
 
   return (
     <div>
+      <DiaryBackLink />
       <h1 className="text-3xl mb-8 flex items-center gap-3">
         <PenLine className="text-blood-600" /> Zapsat trénink ručně
       </h1>

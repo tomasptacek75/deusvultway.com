@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Sparkles, Clock, RefreshCw } from 'lucide-react'
 import { apiClient } from '../../api/client'
+import DiaryBackLink from '../../components/DiaryBackLink'
 
 export default function DiaryNextWorkout() {
   const [suggestion, setSuggestion] = useState(null)
@@ -19,6 +20,7 @@ export default function DiaryNextWorkout() {
 
   return (
     <div>
+      <DiaryBackLink />
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl flex items-center gap-3">
           <Sparkles className="text-blood-600" /> Návrh dalšího tréninku

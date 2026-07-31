@@ -70,19 +70,19 @@ export default function DiaryHistory() {
                         className="px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200"
                       />
                     </label>
-                    <div className="flex items-center gap-2 text-sm text-neutral-400">
+                    <div className="flex items-center gap-2 gap-y-1.5 text-sm text-neutral-400 flex-wrap">
                       <Clock size={14} />
                       <span>Čas:</span>
                       <TimeSelect
                         value={e.start_time}
                         onChange={(v) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, start_time: v } : x)))}
-                        className="px-1.5 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200"
+                        className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
                       />
                       <span className="text-neutral-600">–</span>
                       <TimeSelect
                         value={e.end_time}
                         onChange={(v) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, end_time: v } : x)))}
-                        className="px-1.5 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200"
+                        className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
                       />
                     </div>
                     <DiaryEntryEditor

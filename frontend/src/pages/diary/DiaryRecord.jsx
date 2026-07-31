@@ -115,17 +115,17 @@ export default function DiaryRecord() {
                 className="px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200"
               />
             </label>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 gap-y-1.5 mb-2 flex-wrap">
               <Clock size={14} />
               <span>Čas:</span>
               <TimeSelect
                 value={entry.start_time} onChange={(v) => setEntry((prev) => ({ ...prev, start_time: v }))}
-                className="px-1.5 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200"
+                className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
               />
               <span className="text-neutral-600">–</span>
               <TimeSelect
                 value={entry.end_time} onChange={(v) => setEntry((prev) => ({ ...prev, end_time: v }))}
-                className="px-1.5 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200"
+                className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
               />
             </div>
             {entry.transcript && <div className="italic text-neutral-500">„{entry.transcript}“</div>}

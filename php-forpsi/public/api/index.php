@@ -8,6 +8,7 @@ $allowedOrigins = [
     'https://bloodandguts.cz',
     'https://www.bloodandguts.cz',
     'https://test.bloodandguts.cz',
+    'https://muj.bloodandguts.cz',
 ];
 $reqOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($reqOrigin, $allowedOrigins, true)) {
@@ -22,6 +23,7 @@ $_srcDir = defined('BG_LOCAL_SRC_DIR') ? BG_LOCAL_SRC_DIR : dirname(__DIR__) . '
 define('ERROR_LOG_FILE', dirname($_srcDir) . '/data/error.log');
 require_once $_srcDir . '/bootstrap.php';
 require_once $_srcDir . '/db.php';
+require_once $_srcDir . '/ai.php';
 
 $config = loadConfig();
 $pdo    = db($config);
@@ -35,7 +37,10 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 function userPublic(array $u): array
 {
-    return ['id' => (int)$u['id'], 'email' => $u['email'], 'role' => $u['role'], 'display_name' => $u['display_name']];
+    return [
+        'id' => (int)$u['id'], 'email' => $u['email'], 'role' => $u['role'], 'display_name' => $u['display_name'],
+        'diary_goal' => $u['diary_goal'] ?? null,
+    ];
 }
 
 function tokenFor(array $config, array $u): string
@@ -74,9 +79,11 @@ function notifyLink(string $recipientRole, int $clientId, ?int $workoutId = null
 
 // ── AUTH ──────────────────────────────────────────────────────────────
 
-// Veřejný seznam osob pro POC login bez hesla (výběr role → výběr osoby).
+// Veřejný seznam osob pro POC login bez hesla (výběr role → výběr osoby). Role 'diary' je
+// vyloučená záměrně — u veřejné self-registrace (viz POST /diary/register) by tenhle
+// neautentizovaný seznam odhaloval cizí user_id, se kterým jde přihlásit bez hesla.
 if ($method === 'GET' && $path === '/auth/people') {
-    $rows = fetchAll($pdo, "SELECT id, role, display_name FROM users WHERE active=1 ORDER BY role, display_name");
+    $rows = fetchAll($pdo, "SELECT id, role, display_name FROM users WHERE active=1 AND role IN ('trainer','client') ORDER BY role, display_name");
     jsonResponse($rows);
 }
 
@@ -1417,6 +1424,238 @@ if ($method === 'GET' && $path === '/me/export') {
         $data['progress_photos'] = fetchAll($pdo, "SELECT id, date, note, created_at FROM progress_photos WHERE client_id=?", [$uid]);
     }
     jsonResponse($data);
+}
+
+// ── HLASOVÝ TRÉNINKOVÝ DENÍK (muj.bloodandguts.cz) ────────────────────
+// Samostatný produkt pro roli 'diary' — žádný trenér, žádný vztah k users.role='client'.
+
+function fetchDiaryEntryWithSets(PDO $pdo, int $entryId): ?array
+{
+    $entry = fetchOne($pdo, "SELECT * FROM diary_entries WHERE id=?", [$entryId]);
+    if (!$entry) return null;
+    $sets = fetchAll($pdo, "SELECT * FROM diary_sets WHERE entry_id=? ORDER BY order_num, set_number", [$entryId]);
+    $byExercise = [];
+    foreach ($sets as $s) {
+        $byExercise[$s['order_num']]['name'] ??= $s['exercise_name'];
+        $byExercise[$s['order_num']]['sets'][] = [
+            'set_number' => (int)$s['set_number'], 'reps' => $s['reps'] !== null ? (int)$s['reps'] : null,
+            'weight_kg' => $s['weight_kg'] !== null ? (float)$s['weight_kg'] : null,
+        ];
+    }
+    ksort($byExercise);
+    $entry['exercises'] = array_values($byExercise);
+    return $entry;
+}
+
+function replaceDiarySets(PDO $pdo, int $entryId, array $exercises): void
+{
+    $pdo->prepare("DELETE FROM diary_sets WHERE entry_id=?")->execute([$entryId]);
+    $order = 0;
+    foreach ($exercises as $ex) {
+        $name = trim((string)($ex['name'] ?? ''));
+        if ($name === '') { $order++; continue; }
+        foreach ($ex['sets'] ?? [] as $set) {
+            insertRow($pdo, 'diary_sets', [
+                'entry_id' => $entryId, 'exercise_name' => $name, 'order_num' => $order,
+                'set_number' => (int)($set['set_number'] ?? 1),
+                'reps' => isset($set['reps']) ? (int)$set['reps'] : null,
+                'weight_kg' => isset($set['weight_kg']) ? (float)$set['weight_kg'] : null,
+            ]);
+        }
+        $order++;
+    }
+}
+
+if ($method === 'POST' && $path === '/diary/register') {
+    $b = jsonInput();
+    $email = trim(strtolower((string)($b['email'] ?? '')));
+    $name  = trim((string)($b['display_name'] ?? ''));
+    $password = (string)($b['password'] ?? '');
+    if ($email === '' || $name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        jsonResponse(['detail' => 'Platný e-mail a jméno jsou povinné'], 400);
+    }
+    if (strlen($password) < 6) {
+        jsonResponse(['detail' => 'Heslo musí mít aspoň 6 znaků'], 400);
+    }
+    $goal = in_array($b['goal'] ?? null, ['sila', 'objem', 'mix'], true) ? $b['goal'] : null;
+
+    if (fetchOne($pdo, "SELECT id FROM users WHERE email=?", [$email])) {
+        jsonResponse(['detail' => 'Tento e-mail už je použitý, přihlas se.'], 409);
+    }
+    $id = insertRow($pdo, 'users', [
+        'email' => $email, 'role' => 'diary', 'display_name' => $name, 'diary_goal' => $goal,
+        'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+    ]);
+    $user = fetchOne($pdo, "SELECT * FROM users WHERE id=?", [$id]);
+    jsonResponse(['access_token' => tokenFor($config, $user), 'user' => userPublic($user)], 201);
+}
+
+if ($method === 'POST' && $path === '/diary/login') {
+    $b = jsonInput();
+    $email = trim(strtolower((string)($b['email'] ?? '')));
+    $password = (string)($b['password'] ?? '');
+    $user = fetchOne($pdo, "SELECT * FROM users WHERE email=? AND role='diary'", [$email]);
+    if (!$user || !$user['password_hash'] || !password_verify($password, $user['password_hash'])) {
+        jsonResponse(['detail' => 'Nesprávný e-mail nebo heslo.'], 401);
+    }
+    jsonResponse(['access_token' => tokenFor($config, $user), 'user' => userPublic($user)]);
+}
+
+if ($method === 'POST' && $path === '/diary/reset-request') {
+    $b = jsonInput();
+    $email = trim(strtolower((string)($b['email'] ?? '')));
+    $user = fetchOne($pdo, "SELECT * FROM users WHERE email=? AND role='diary'", [$email]);
+    if ($user) {
+        $token = bin2hex(random_bytes(32));
+        insertRow($pdo, 'password_resets', [
+            'user_id' => $user['id'], 'token_hash' => hash('sha256', $token),
+            'expires_at' => date('Y-m-d H:i:s', time() + 3600),
+        ]);
+        $appOrigin = $reqOrigin ?: 'https://muj.bloodandguts.cz';
+        $link = "{$appOrigin}/diary/reset-confirm?token={$token}";
+        sendMail($config, $email, 'Obnovení hesla — Můj trénink', implode("\n", [
+            'Ahoj,', '',
+            'někdo (doufáme že ty) požádal o obnovení hesla k účtu Můj trénink.', '',
+            'Klikni na odkaz níže, platí 1 hodinu:', $link, '',
+            'Pokud jsi o reset nežádal(a), tenhle e-mail můžeš ignorovat.',
+        ]));
+    }
+    // Vždy stejná odpověď bez ohledu na to, jestli e-mail existuje — jinak by endpoint šel
+    // zneužít k ověření, které e-maily u nás mají účet.
+    jsonResponse(['ok' => true]);
+}
+
+if ($method === 'POST' && $path === '/diary/reset-confirm') {
+    $b = jsonInput();
+    $token = (string)($b['token'] ?? '');
+    $password = (string)($b['password'] ?? '');
+    if (strlen($password) < 6) jsonResponse(['detail' => 'Heslo musí mít aspoň 6 znaků'], 400);
+    $reset = fetchOne($pdo, "SELECT * FROM password_resets WHERE token_hash=? AND used_at IS NULL AND expires_at > ?", [hash('sha256', $token), date('Y-m-d H:i:s')]);
+    if (!$reset) jsonResponse(['detail' => 'Odkaz je neplatný nebo vypršel.'], 400);
+    $user = fetchOne($pdo, "SELECT * FROM users WHERE id=?", [$reset['user_id']]);
+    if (!$user) jsonResponse(['detail' => 'Odkaz je neplatný nebo vypršel.'], 400);
+    $pdo->prepare("UPDATE users SET password_hash=? WHERE id=?")->execute([password_hash($password, PASSWORD_DEFAULT), $user['id']]);
+    $pdo->prepare("UPDATE password_resets SET used_at=? WHERE id=?")->execute([date('Y-m-d H:i:s'), (int)$reset['id']]);
+    jsonResponse(['access_token' => tokenFor($config, $user), 'user' => userPublic($user)]);
+}
+
+if ($method === 'PUT' && $path === '/diary/goal') {
+    $auth = requireRole($config, 'diary');
+    $b = jsonInput();
+    if (!in_array($b['goal'] ?? null, ['sila', 'objem', 'mix'], true)) {
+        jsonResponse(['detail' => 'goal musí být sila|objem|mix'], 400);
+    }
+    $pdo->prepare("UPDATE users SET diary_goal=? WHERE id=?")->execute([$b['goal'], $auth['user_id']]);
+    jsonResponse(['ok' => true]);
+}
+
+if ($method === 'POST' && $path === '/diary/upload') {
+    $auth = requireRole($config, 'diary');
+    if (empty($_FILES['audio']) || $_FILES['audio']['error'] !== UPLOAD_ERR_OK) {
+        jsonResponse(['detail' => 'audio je povinné'], 400);
+    }
+    set_time_limit(120);
+    $userId = (int)$auth['user_id'];
+    $ext = strtolower(pathinfo((string)$_FILES['audio']['name'], PATHINFO_EXTENSION)) ?: 'webm';
+    $dir = dirname($config['db_path']) . '/uploads/diary/' . $userId;
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    $filename = bin2hex(random_bytes(16)) . '.' . $ext;
+    move_uploaded_file($_FILES['audio']['tmp_name'], $dir . '/' . $filename);
+
+    $uploadId = insertRow($pdo, 'diary_audio_uploads', [
+        'user_id' => $userId, 'file_path' => $userId . '/' . $filename, 'mime_type' => $_FILES['audio']['type'] ?? null,
+    ]);
+
+    try {
+        $transcript = whisperTranscribe($config, $dir . '/' . $filename, $_FILES['audio']['type'] ?? 'audio/webm');
+        $known = fetchAll($pdo, "SELECT exercise_name, MAX(de.recorded_at) AS last_used FROM diary_sets ds
+                                  JOIN diary_entries de ON de.id=ds.entry_id WHERE de.user_id=?
+                                  GROUP BY exercise_name ORDER BY last_used DESC LIMIT 20", [$userId]);
+        $parsed = claudeStructureWorkout($config, $transcript, array_column($known, 'exercise_name'));
+    } catch (\Throwable $e) {
+        $pdo->prepare("UPDATE diary_audio_uploads SET transcription_status='failed', error_message=? WHERE id=?")
+            ->execute([$e->getMessage(), $uploadId]);
+        logError('diary/upload zpracování selhalo: ' . $e->getMessage());
+        jsonResponse(['detail' => 'Zpracování nahrávky selhalo, zkus to prosím znovu.'], 502);
+    }
+
+    $entryId = insertRow($pdo, 'diary_entries', [
+        'user_id' => $userId, 'recorded_at' => $parsed['date'] ?? date('Y-m-d'),
+        'transcript' => $transcript, 'ai_raw_json' => json_encode($parsed, JSON_UNESCAPED_UNICODE),
+        'status' => ($parsed['confidence'] ?? 'high') === 'low' ? 'needs_review' : 'parsed',
+        'notes' => $parsed['notes'] ?? null,
+    ]);
+    replaceDiarySets($pdo, $entryId, $parsed['exercises'] ?? []);
+    $pdo->prepare("UPDATE diary_audio_uploads SET transcription_status='ok', entry_id=? WHERE id=?")->execute([$entryId, $uploadId]);
+    jsonResponse(fetchDiaryEntryWithSets($pdo, $entryId), 201);
+}
+
+if ($method === 'GET' && $path === '/diary/entries') {
+    $auth = requireRole($config, 'diary');
+    $ids = fetchAll($pdo, "SELECT id FROM diary_entries WHERE user_id=? ORDER BY recorded_at DESC, id DESC", [$auth['user_id']]);
+    jsonResponse(array_map(fn($r) => fetchDiaryEntryWithSets($pdo, (int)$r['id']), $ids));
+}
+
+if ($method === 'GET' && count($seg) === 3 && $seg[0] === 'diary' && $seg[1] === 'entries') {
+    $auth = requireRole($config, 'diary');
+    $entry = fetchDiaryEntryWithSets($pdo, (int)$seg[2]);
+    if (!$entry || (int)$entry['user_id'] !== (int)$auth['user_id']) jsonResponse(['detail' => 'Záznam nenalezen'], 404);
+    jsonResponse($entry);
+}
+
+if ($method === 'PUT' && count($seg) === 3 && $seg[0] === 'diary' && $seg[1] === 'entries') {
+    $auth = requireRole($config, 'diary');
+    $entry = fetchOne($pdo, "SELECT * FROM diary_entries WHERE id=?", [(int)$seg[2]]);
+    if (!$entry || (int)$entry['user_id'] !== (int)$auth['user_id']) jsonResponse(['detail' => 'Záznam nenalezen'], 404);
+    $b = jsonInput();
+    $pdo->prepare("UPDATE diary_entries SET recorded_at=?, notes=?, start_time=?, end_time=?, status='parsed' WHERE id=?")->execute([
+        trim((string)($b['recorded_at'] ?? $entry['recorded_at'])), $b['notes'] ?? $entry['notes'],
+        $b['start_time'] ?? $entry['start_time'] ?? null, $b['end_time'] ?? $entry['end_time'] ?? null,
+        (int)$seg[2],
+    ]);
+    if (isset($b['exercises'])) replaceDiarySets($pdo, (int)$seg[2], $b['exercises']);
+    jsonResponse(fetchDiaryEntryWithSets($pdo, (int)$seg[2]));
+}
+
+if ($method === 'DELETE' && count($seg) === 3 && $seg[0] === 'diary' && $seg[1] === 'entries') {
+    $auth = requireRole($config, 'diary');
+    $entry = fetchOne($pdo, "SELECT * FROM diary_entries WHERE id=?", [(int)$seg[2]]);
+    if ($entry && (int)$entry['user_id'] === (int)$auth['user_id']) {
+        $pdo->prepare("DELETE FROM diary_entries WHERE id=?")->execute([(int)$seg[2]]);
+    }
+    jsonResponse(['ok' => true]);
+}
+
+if ($method === 'GET' && $path === '/diary/next-workout') {
+    $auth = requireRole($config, 'diary');
+    $userId = (int)$auth['user_id'];
+    $user = fetchOne($pdo, "SELECT * FROM users WHERE id=?", [$userId]);
+    $lastEntry = fetchOne($pdo, "SELECT MAX(recorded_at) AS d FROM diary_entries WHERE user_id=?", [$userId]);
+    $fresh = fetchOne($pdo, "SELECT * FROM diary_suggestions WHERE user_id=? ORDER BY created_at DESC LIMIT 1", [$userId]);
+
+    $stillFresh = $fresh
+        && (!$lastEntry['d'] || $fresh['created_at'] >= $lastEntry['d'])
+        && strtotime($fresh['created_at']) > time() - 12 * 3600;
+    if ($stillFresh) {
+        jsonResponse(json_decode($fresh['suggestion_json'], true));
+    }
+
+    $history = fetchAll($pdo, "SELECT de.recorded_at, ds.exercise_name, ds.set_number, ds.reps, ds.weight_kg
+        FROM diary_sets ds JOIN diary_entries de ON de.id=ds.entry_id WHERE de.user_id=?
+        ORDER BY de.recorded_at DESC LIMIT 200", [$userId]);
+
+    try {
+        $suggestion = claudeSuggestNextWorkout($config, $user['diary_goal'] ?? 'mix', $history);
+    } catch (\Throwable $e) {
+        logError('diary/next-workout selhalo: ' . $e->getMessage());
+        jsonResponse(['detail' => 'Návrh se nepodařilo vygenerovat, zkus to prosím znovu.'], 502);
+    }
+
+    insertRow($pdo, 'diary_suggestions', [
+        'user_id' => $userId, 'goal_snapshot' => $user['diary_goal'] ?? null,
+        'suggestion_json' => json_encode($suggestion, JSON_UNESCAPED_UNICODE), 'based_on_entry_count' => count($history),
+    ]);
+    jsonResponse($suggestion);
 }
 
 jsonResponse(['detail' => 'Not found'], 404);

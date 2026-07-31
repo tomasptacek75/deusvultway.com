@@ -19,11 +19,11 @@ function db(array $config): PDO
     // sdílený/síťový hosting (Forpsi) nepodporuje spolehlivě (viz stejný vzor u Kamata.cz).
     $pdo->exec('PRAGMA journal_mode = DELETE');
 
-    initSchema($pdo);
+    initSchema($pdo, $config);
     return $pdo;
 }
 
-function initSchema(PDO $pdo): void
+function initSchema(PDO $pdo, array $config): void
 {
     $pdo->exec("
     CREATE TABLE IF NOT EXISTS users (
@@ -357,6 +357,68 @@ function initSchema(PDO $pdo): void
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_ci_section ON content_items(section_id);
+
+    -- ── Hlasový tréninkový deník (muj.bloodandguts.cz) — samostatný produkt pro roli 'diary',
+    -- žádný trenér/klient vztah. Cviky jsou volný text (žádný katalog jako exercises), protože
+    -- jde o jednoho uživatele bez trenéra, který si vede vlastní historii.
+    CREATE TABLE IF NOT EXISTS diary_entries (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        recorded_at TEXT NOT NULL,
+        transcript  TEXT,
+        ai_raw_json TEXT,
+        status      TEXT NOT NULL DEFAULT 'parsed',
+        notes       TEXT,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_diary_entries_user ON diary_entries(user_id, recorded_at);
+
+    CREATE TABLE IF NOT EXISTS diary_sets (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        entry_id      INTEGER NOT NULL REFERENCES diary_entries(id) ON DELETE CASCADE,
+        exercise_name TEXT NOT NULL,
+        order_num     INTEGER NOT NULL DEFAULT 0,
+        set_number    INTEGER NOT NULL,
+        reps          INTEGER,
+        weight_kg     REAL,
+        note          TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_diary_sets_entry ON diary_sets(entry_id);
+
+    CREATE TABLE IF NOT EXISTS diary_audio_uploads (
+        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id              INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        entry_id             INTEGER REFERENCES diary_entries(id) ON DELETE SET NULL,
+        file_path            TEXT NOT NULL,
+        mime_type            TEXT,
+        transcription_status TEXT NOT NULL DEFAULT 'pending',
+        error_message        TEXT,
+        created_at           DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_diary_audio_user ON diary_audio_uploads(user_id);
+
+    CREATE TABLE IF NOT EXISTS diary_suggestions (
+        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id              INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        goal_snapshot        TEXT,
+        suggestion_json      TEXT NOT NULL,
+        based_on_entry_count INTEGER NOT NULL DEFAULT 0,
+        created_at           DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_diary_suggestions_user ON diary_suggestions(user_id, created_at);
+
+    -- Reset hesla (zatím jen role 'diary', viz api/index.php /diary/reset-*). Ukládá se hash
+    -- tokenu, ne token samotný — únik DB tak nedá funkční reset odkaz. Jednorázové (used_at).
+    CREATE TABLE IF NOT EXISTS password_resets (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        used_at    DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_pwreset_user ON password_resets(user_id);
+    CREATE INDEX IF NOT EXISTS idx_pwreset_token ON password_resets(token_hash);
     ");
 
     // Všechny ALTER TABLE pokusy a seed/backfill funkce níž jsou samy o sobě idempotentní, ale
@@ -397,10 +459,10 @@ function initSchema(PDO $pdo): void
     // Telefon — trenér ho chce v přehledu klientů místo e-mailu (2026-07-24).
     try { $pdo->exec("ALTER TABLE users ADD COLUMN phone TEXT"); } catch (\Exception) {}
 
-    seedDemoData($pdo);
+    seedDemoData($pdo, $config);
     seedAdditionalClientData($pdo);
     backfillExerciseTranslations($pdo);
-    seedExtraDemoClients($pdo);
+    seedExtraDemoClients($pdo, $config);
     seedJulyAugustDemoSchedule($pdo);
     backfillDemoPhones($pdo);
     // Oprava e-mailu trenéra na DB, které se naseedovaly ještě před tím, než David dodal
@@ -444,6 +506,23 @@ function initSchema(PDO $pdo): void
 
     $pdo->exec('PRAGMA user_version = 3');
     }
+
+    if ($schemaVersion < 4) {
+    // Cíl uživatele hlasového deníku (síla/objem/mix) — volný text jako role/client_type,
+    // žádný enum na úrovni DB. Neškodí u trenéra/klienta (zůstává NULL).
+    try { $pdo->exec("ALTER TABLE users ADD COLUMN diary_goal TEXT"); } catch (\Exception) {}
+
+    $pdo->exec('PRAGMA user_version = 4');
+    }
+
+    if ($schemaVersion < 5) {
+    // Čas tréninku od-do (HH:MM, stejný formát jako workouts.time) — ručně doplňovaný,
+    // AI ho z přepisu nezkouší odhadovat.
+    try { $pdo->exec("ALTER TABLE diary_entries ADD COLUMN start_time TEXT"); } catch (\Exception) {}
+    try { $pdo->exec("ALTER TABLE diary_entries ADD COLUMN end_time TEXT"); } catch (\Exception) {}
+
+    $pdo->exec('PRAGMA user_version = 5');
+    }
 }
 
 function fetchOne(PDO $pdo, string $sql, array $params = []): ?array
@@ -473,8 +552,9 @@ function insertRow(PDO $pdo, string $table, array $data): int
 
 // Seedne demo trenéra a klienty s ukázkovými daty, aby šel POC hned předvést bez ručního
 // zadávání. Idempotentní — spouští se jen když je tabulka users prázdná.
-function seedDemoData(PDO $pdo): void
+function seedDemoData(PDO $pdo, array $config): void
 {
+    if (!($config['seed_demo'] ?? true)) return;
     if ((int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn() > 0) return;
 
     $trainerId = insertRow($pdo, 'users', [
@@ -687,8 +767,9 @@ function seedAdditionalClientData(PDO $pdo): void
 // Doplňuje demo klientelu na názornější počet pro předvedení kalendáře (2026-07-24) —
 // idempotentní podle e-mailu, bezpečné spouštět na každý request. Skuteční klienti, které
 // David zadá sám, mají jiné e-maily, takže se s touhle sadou nikdy nepřekryjí.
-function seedExtraDemoClients(PDO $pdo): void
+function seedExtraDemoClients(PDO $pdo, array $config): void
 {
+    if (!($config['seed_demo'] ?? true)) return;
     $extraClients = [
         ['Lucie Horáková', 'lucie.horakova@example.com'],
         ['Martin Beneš', 'martin.benes@example.com'],

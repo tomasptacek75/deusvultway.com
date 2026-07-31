@@ -22,6 +22,15 @@ import History from './pages/client/History'
 import Messages from './pages/client/Messages'
 import Billing from './pages/client/Billing'
 import ClientContentLibrary from './pages/client/ContentLibrary'
+import DiaryRegister from './pages/diary/DiaryRegister'
+import DiaryLogin from './pages/diary/DiaryLogin'
+import DiaryResetRequest from './pages/diary/DiaryResetRequest'
+import DiaryResetConfirm from './pages/diary/DiaryResetConfirm'
+import DiaryHome from './pages/diary/DiaryHome'
+import DiaryRecord from './pages/diary/DiaryRecord'
+import DiaryHistory from './pages/diary/DiaryHistory'
+import DiaryNextWorkout from './pages/diary/DiaryNextWorkout'
+import DiaryGoal from './pages/diary/DiaryGoal'
 
 const trainerLinks = [
   { to: '/trainer/calendar', label: 'Kalendář', labelEn: 'Calendar' },
@@ -45,11 +54,46 @@ const clientLinks = [
   { to: '/client/billing', label: 'Platby', labelEn: 'Billing' },
 ]
 
+const diaryLinks = [
+  { to: '/diary', label: 'Přehled', labelEn: 'Přehled', end: true },
+  { to: '/diary/record', label: 'Namluvit', labelEn: 'Namluvit' },
+  { to: '/diary/history', label: 'Historie', labelEn: 'Historie' },
+  { to: '/diary/next-workout', label: 'Návrh', labelEn: 'Návrh' },
+  { to: '/diary/goal', label: 'Cíl', labelEn: 'Cíl' },
+]
+
+// muj.bloodandguts.cz servíruje stejný build jako bloodandguts.cz/test.bloodandguts.cz (viz
+// _ftp_deploy_muj.py) — hostname branching rozhoduje, co se ukáže na "/".
+const isMujHost = window.location.hostname === 'muj.bloodandguts.cz' || window.location.hostname.startsWith('muj.')
+
 function App() {
   return (
     <Routes>
-      <Route path="/" element={isAuthenticated() ? <Navigate to={homePath()} replace /> : <Landing />} />
+      <Route path="/" element={
+        isAuthenticated() ? <Navigate to={homePath()} replace />
+        : isMujHost ? <Navigate to="/diary/login" replace />
+        : <Landing />
+      } />
       <Route path="/login" element={<Login />} />
+      <Route path="/diary/login" element={<DiaryLogin />} />
+      <Route path="/diary/register" element={<DiaryRegister />} />
+      <Route path="/diary/reset-request" element={<DiaryResetRequest />} />
+      <Route path="/diary/reset-confirm" element={<DiaryResetConfirm />} />
+
+      <Route
+        path="/diary"
+        element={
+          <ProtectedRoute role="diary">
+            <AppShell links={diaryLinks} />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<DiaryHome />} />
+        <Route path="record" element={<DiaryRecord />} />
+        <Route path="history" element={<DiaryHistory />} />
+        <Route path="next-workout" element={<DiaryNextWorkout />} />
+        <Route path="goal" element={<DiaryGoal />} />
+      </Route>
 
       <Route
         path="/trainer"

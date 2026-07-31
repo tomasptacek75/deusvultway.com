@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Mic, Square, Check, Calendar, Clock, NotebookPen, RotateCcw } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
@@ -19,10 +19,10 @@ export default function DiaryRecord() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [entry, setEntry] = useState(null)
-  const [saved, setSaved] = useState(false)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
   const streamRef = useRef(null)
+  const navigate = useNavigate()
 
   // Mikrofonní stream se mezi nahrávkami nezavírá (jen se stopne/spustí MediaRecorder nad ním) —
   // opakované getUserMedia po ukončení předchozích stop() na tracích některé prohlížeče (hlavně
@@ -35,7 +35,6 @@ export default function DiaryRecord() {
   async function startRecording() {
     setError('')
     setEntry(null)
-    setSaved(false)
     try {
       let stream = streamRef.current
       if (!stream || stream.getTracks().some((t) => t.readyState === 'ended')) {
@@ -79,19 +78,17 @@ export default function DiaryRecord() {
 
   function recordAgain() {
     setEntry(null)
-    setSaved(false)
     setError('')
   }
 
   async function saveEdits() {
     setError('')
     try {
-      const { data } = await apiClient.put(`/diary/entries/${entry.id}`, {
+      await apiClient.put(`/diary/entries/${entry.id}`, {
         recorded_at: entry.recorded_at, notes: entry.notes, exercises: entry.exercises,
         start_time: entry.start_time, end_time: entry.end_time,
       })
-      setEntry(data)
-      setSaved(true)
+      navigate('/diary')
     } catch {
       setError('Uložení se nepovedlo, zkus to prosím znovu.')
     }
@@ -168,7 +165,6 @@ export default function DiaryRecord() {
             <button onClick={recordAgain} className="px-4 py-2.5 rounded-md border border-neutral-800 hover:border-neutral-700 text-neutral-300 font-medium flex items-center gap-2">
               <RotateCcw size={16} /> Nahrát znovu
             </button>
-            {saved && <span className="text-sm text-neutral-400">Uloženo.</span>}
             <Link to="/diary/history" className="text-sm text-neutral-400 hover:text-neutral-200 ml-auto">Do historie →</Link>
           </div>
         </div>

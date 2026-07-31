@@ -24,7 +24,7 @@ export default function DiaryManualEntry() {
         recorded_at: recordedAt, start_time: startTime || null, end_time: endTime || null,
         exercises: exercises.filter((ex) => ex.name.trim() !== ''), notes: notes || null,
       })
-      navigate('/diary/history')
+      navigate('/diary')
     } catch {
       setError('Uložení se nepovedlo, zkus to prosím znovu.')
     } finally {

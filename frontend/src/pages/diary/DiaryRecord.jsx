@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mic, Square, Check, Calendar, Clock, NotebookPen, RotateCcw } from 'lucide-react'
+import { Mic, Square, Check, Calendar, Clock, NotebookPen, RotateCcw, Trash2 } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
@@ -79,6 +79,15 @@ export default function DiaryRecord() {
   function recordAgain() {
     setEntry(null)
     setError('')
+  }
+
+  async function discardEntry() {
+    if (!window.confirm('Opravdu zahodit tenhle záznam? Nic se neuloží.')) return
+    try {
+      await apiClient.delete(`/diary/entries/${entry.id}`)
+    } finally {
+      navigate('/diary')
+    }
   }
 
   async function saveEdits() {
@@ -164,6 +173,9 @@ export default function DiaryRecord() {
             </button>
             <button onClick={recordAgain} className="px-4 py-2.5 rounded-md border border-neutral-800 hover:border-neutral-700 text-neutral-300 font-medium flex items-center gap-2">
               <RotateCcw size={16} /> Nahrát znovu
+            </button>
+            <button onClick={discardEntry} className="px-4 py-2.5 rounded-md border border-neutral-800 hover:border-blood-700 text-neutral-300 font-medium flex items-center gap-2">
+              <Trash2 size={16} /> Smazat
             </button>
             <Link to="/diary/history" className="text-sm text-neutral-400 hover:text-neutral-200 ml-auto">Do historie →</Link>
           </div>

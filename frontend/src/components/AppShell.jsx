@@ -16,7 +16,7 @@ const mobileNavClass = ({ isActive }) =>
     isActive ? 'bg-blood-700 text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'
   }`
 
-export default function AppShell({ links }) {
+export default function AppShell({ links, showLanguageToggle = true, showNotifications = true }) {
   const user = getUser()
   const [open, setOpen] = useState(false)
   const { t } = useLanguage()
@@ -39,8 +39,8 @@ export default function AppShell({ links }) {
           </nav>
 
           <div className="hidden md:flex items-center gap-3 text-sm text-neutral-400 shrink-0">
-            <LanguageToggle />
-            <NotificationBell />
+            {showLanguageToggle && <LanguageToggle />}
+            {showNotifications && <NotificationBell />}
             <span className="truncate max-w-[10rem]">{user?.display_name}</span>
             <button
               onClick={logout}
@@ -52,8 +52,8 @@ export default function AppShell({ links }) {
           </div>
 
           <div className="flex items-center gap-1 md:hidden">
-            <LanguageToggle className="p-1.5" />
-            <NotificationBell />
+            {showLanguageToggle && <LanguageToggle className="p-1.5" />}
+            {showNotifications && <NotificationBell />}
             <button
               onClick={() => setOpen((o) => !o)}
               className="text-neutral-300 hover:text-white p-1.5"

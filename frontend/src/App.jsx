@@ -85,7 +85,7 @@ function App() {
         path="/diary"
         element={
           <ProtectedRoute role="diary">
-            <AppShell links={diaryLinks} />
+            <AppShell links={diaryLinks} showLanguageToggle={false} showNotifications={false} />
           </ProtectedRoute>
         }
       >

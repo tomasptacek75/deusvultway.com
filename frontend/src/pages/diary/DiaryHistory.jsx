@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock } from 'lucide-react'
+import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock, NotebookPen } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
@@ -57,8 +57,6 @@ export default function DiaryHistory() {
             </button>
             {expanded === e.id && (
               <div className="border-t border-neutral-800 p-4 space-y-3">
-                {e.notes && <div className="text-sm text-neutral-400 italic">{e.notes}</div>}
-
                 {editing === e.id ? (
                   <>
                     <label className="flex items-center gap-2 text-sm text-neutral-400">
@@ -89,6 +87,15 @@ export default function DiaryHistory() {
                       exercises={e.exercises}
                       onChange={(exercises) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, exercises } : x)))}
                     />
+                    <label className="block text-sm text-neutral-400">
+                      <span className="flex items-center gap-2 mb-1"><NotebookPen size={14} /> Poznámka</span>
+                      <textarea
+                        rows={3} value={e.notes || ''}
+                        onChange={(ev) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, notes: ev.target.value } : x)))}
+                        placeholder="Únava před/po, jak se cvičilo, spánek, strava — cokoli, co mohlo ovlivnit trénink"
+                        className="w-full px-3 py-2 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 resize-y"
+                      />
+                    </label>
                     <div className="flex items-center gap-3">
                       <button onClick={() => saveEdits(e)} className="px-3 py-2 rounded-md bg-blood-700 hover:bg-blood-600 text-sm font-medium flex items-center gap-1.5">
                         <Check size={14} /> Uložit
@@ -98,6 +105,7 @@ export default function DiaryHistory() {
                   </>
                 ) : (
                   <>
+                    {e.notes && <div className="text-sm text-neutral-400 italic">{e.notes}</div>}
                     {e.exercises.map((ex, i) => (
                       <div key={i} className="text-sm">
                         <span className="font-medium">{ex.name}</span>

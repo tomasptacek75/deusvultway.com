@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mic, Square, Check, Calendar, Clock } from 'lucide-react'
+import { Mic, Square, Check, Calendar, Clock, NotebookPen } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
@@ -132,6 +132,16 @@ export default function DiaryRecord() {
           </div>
 
           <DiaryEntryEditor exercises={entry.exercises} onChange={(exercises) => setEntry((e) => ({ ...e, exercises }))} />
+
+          <label className="block text-sm text-neutral-400">
+            <span className="flex items-center gap-2 mb-1"><NotebookPen size={14} /> Poznámka</span>
+            <textarea
+              rows={3} value={entry.notes || ''}
+              onChange={(e) => setEntry((prev) => ({ ...prev, notes: e.target.value }))}
+              placeholder="Únava před/po, jak se cvičilo, spánek, strava — cokoli, co mohlo ovlivnit trénink"
+              className="w-full px-3 py-2 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-200 resize-y"
+            />
+          </label>
 
           <div className="flex items-center gap-3 pt-2">
             <button onClick={saveEdits} className="px-4 py-2.5 rounded-md bg-blood-700 hover:bg-blood-600 font-medium flex items-center gap-2">

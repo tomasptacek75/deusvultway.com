@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { PenLine, Calendar, Clock, Check } from 'lucide-react'
+import { PenLine, Calendar, Clock, Check, NotebookPen } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
@@ -10,6 +10,7 @@ export default function DiaryManualEntry() {
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [exercises, setExercises] = useState([{ name: '', sets: [{ set_number: 1, reps: null, weight_kg: null }] }])
+  const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
@@ -20,7 +21,7 @@ export default function DiaryManualEntry() {
     try {
       await apiClient.post('/diary/entries', {
         recorded_at: recordedAt, start_time: startTime || null, end_time: endTime || null,
-        exercises: exercises.filter((ex) => ex.name.trim() !== ''),
+        exercises: exercises.filter((ex) => ex.name.trim() !== ''), notes: notes || null,
       })
       navigate('/diary/history')
     } catch {
@@ -64,6 +65,15 @@ export default function DiaryManualEntry() {
         </div>
 
         <DiaryEntryEditor exercises={exercises} onChange={setExercises} />
+
+        <label className="block text-sm text-neutral-400">
+          <span className="flex items-center gap-2 mb-1"><NotebookPen size={14} /> Poznámka</span>
+          <textarea
+            rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
+            placeholder="Únava před/po, jak se cvičilo, spánek, strava — cokoli, co mohlo ovlivnit trénink"
+            className="w-full px-3 py-2 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-200 resize-y"
+          />
+        </label>
 
         <div className="flex items-center gap-3 pt-2">
           <button onClick={handleSave} disabled={loading} className="px-4 py-2.5 rounded-md bg-blood-700 hover:bg-blood-600 disabled:opacity-50 font-medium flex items-center gap-2">

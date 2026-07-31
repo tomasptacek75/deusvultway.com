@@ -116,7 +116,7 @@ export default function DiaryRecord() {
             {recording ? <Square className="text-white" size={28} /> : <Mic className="text-blood-500" size={28} />}
           </button>
           <p className="text-neutral-400 text-sm mt-4">
-            {processing ? 'Zpracovávám nahrávku, chvilku strpení…' : recording ? 'Nahrávám… klepnutím ukonči' : 'Klepni a řekni, co jsi cvičil'}
+            {processing ? 'Zpracovávám nahrávku, chvilku strpení…' : recording ? 'Nahrávám… klepnutím ukonči' : 'Klepni a popiš svůj trénink'}
           </p>
         </div>
       )}

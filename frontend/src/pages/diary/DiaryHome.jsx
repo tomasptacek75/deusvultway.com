@@ -16,19 +16,19 @@ export default function DiaryHome() {
         <div className="flex flex-col gap-4">
           <Link
             to="/diary/record"
-            className="rounded-lg border border-blood-700 bg-blood-900/20 p-6 flex items-center gap-4 hover:bg-blood-900/30 transition-colors"
+            className="rounded-lg border border-blood-700 bg-blood-900/20 p-6 flex items-start gap-4 hover:bg-blood-900/30 transition-colors"
           >
-            <Mic className="text-blood-500" size={28} />
+            <Mic className="text-blood-500 shrink-0" size={28} />
             <div>
               <div className="font-semibold">Namluvit trénink</div>
-              <div className="text-sm text-neutral-400">Řekni mi kdy, co a jak dlouho jsi cvičil, opakování v jednotlivých seriích, jak ti to šlo, já to zapíšu sám</div>
+              <div className="text-sm text-neutral-400">Řekni mi, kdy proběhl trénink, co a jak dlouho, opakování v jednotlivých sériích a jak to šlo — zapíšu to za tebe</div>
             </div>
           </Link>
           <Link
             to="/diary/manual"
-            className="rounded-lg border border-neutral-800 bg-neutral-900 p-6 flex items-center gap-4 hover:border-neutral-700 transition-colors"
+            className="rounded-lg border border-neutral-800 bg-neutral-900 p-6 flex items-start gap-4 hover:border-neutral-700 transition-colors"
           >
-            <PenLine className="text-blood-500" size={28} />
+            <PenLine className="text-blood-500 shrink-0" size={28} />
             <div>
               <div className="font-semibold">Zapsat ručně</div>
               <div className="text-sm text-neutral-400">Nebo to zapiš ty</div>
@@ -37,9 +37,9 @@ export default function DiaryHome() {
         </div>
         <Link
           to="/diary/next-workout"
-          className="rounded-lg border border-neutral-800 bg-neutral-900 p-6 flex items-center gap-4 hover:border-neutral-700 transition-colors"
+          className="rounded-lg border border-neutral-800 bg-neutral-900 p-6 flex items-start gap-4 hover:border-neutral-700 transition-colors"
         >
-          <Sparkles className="text-blood-500" size={28} />
+          <Sparkles className="text-blood-500 shrink-0" size={28} />
           <div>
             <div className="font-semibold">Návrh dalšího tréninku</div>
             <div className="text-sm text-neutral-400">Doporučím ti, co cvičit příště</div>

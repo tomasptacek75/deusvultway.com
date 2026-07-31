@@ -1576,7 +1576,13 @@ if ($method === 'POST' && $path === '/diary/upload') {
         $pdo->prepare("UPDATE diary_audio_uploads SET transcription_status='failed', error_message=? WHERE id=?")
             ->execute([$e->getMessage(), $uploadId]);
         logError('diary/upload zpracování selhalo: ' . $e->getMessage());
-        jsonResponse(['detail' => 'Zpracování nahrávky selhalo, zkus to prosím znovu.'], 502);
+        // whisperTranscribe() u nesrozumitelné/tiché nahrávky hodí vlastní srozumitelnou českou
+        // zprávu (viz ai.php isLikelyHallucination()) — tu chceme ukázat uživateli přímo, ne
+        // schovat za obecnou hlášku. Ostatní výjimky (síť, API chyby) obecnou hláškou zůstávají,
+        // ať se do UI nedostane syrový technický text.
+        $detail = str_starts_with($e->getMessage(), 'Nahrávka nezněla srozumitelně')
+            ? $e->getMessage() : 'Zpracování nahrávky selhalo, zkus to prosím znovu.';
+        jsonResponse(['detail' => $detail], 502);
     }
 
     $entryId = insertRow($pdo, 'diary_entries', [

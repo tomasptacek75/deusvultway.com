@@ -60,7 +60,9 @@ function whisperTranscribe(array $config, string $filePath, string $mimeType): s
             'file' => new \CURLFile($filePath, $mimeType, basename($filePath)),
             'model' => 'whisper-1',
             'language' => 'cs',
-            'response_format' => 'json',
+            // verbose_json místo json — potřebujeme segments[].no_speech_prob, abychom poznali
+            // halucinaci (viz isLikelyHallucination() níže), obyčejný 'json' vrací jen text.
+            'response_format' => 'verbose_json',
         ],
         CURLOPT_TIMEOUT => 60,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
@@ -78,7 +80,27 @@ function whisperTranscribe(array $config, string $filePath, string $mimeType): s
     $data = json_decode($raw, true);
     if (!is_array($data)) throw new \RuntimeException('Whisper API: neplatná odpověď');
     if (isset($data['error'])) throw new \RuntimeException('Whisper API error: ' . ($data['error']['message'] ?? 'neznámá chyba'));
-    return (string)($data['text'] ?? '');
+
+    $text = trim((string)($data['text'] ?? ''));
+    if ($text === '' || isLikelyHallucination($data['segments'] ?? [])) {
+        throw new \RuntimeException('Nahrávka nezněla srozumitelně — nerozpoznali jsme žádnou řeč. Zkus to prosím znovu, ať tě appka slyší.');
+    }
+    return $text;
+}
+
+// Whisper na tichu/šumu bez zřetelné řeči místo "nerozuměl jsem" často vrátí věrohodně
+// vyhlížející, ale zcela vymyšlený text (typicky webové adresy nebo titulkové fráze typu
+// "děkuji za sledování") — známá halucinace modelu, ne chyba appky. segments[].no_speech_prob
+// (dostupné jen ve verbose_json) říká, jak moc si je model jistý, že v úseku vůbec je řeč;
+// když je vysoké napříč většinou úseků, jde skoro jistě o halucinaci, ne o skutečný přepis.
+function isLikelyHallucination(array $segments): bool
+{
+    if (empty($segments)) return true;
+    $high = 0;
+    foreach ($segments as $seg) {
+        if (($seg['no_speech_prob'] ?? 0) > 0.6) $high++;
+    }
+    return ($high / count($segments)) >= 0.5;
 }
 
 // Převede syrový český přepis tréninku na strukturovaná data (cviky/série/opakování/váhy).

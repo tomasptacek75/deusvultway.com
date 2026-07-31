@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock, NotebookPen } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock, NotebookPen, ArrowLeft } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
@@ -31,6 +32,9 @@ export default function DiaryHistory() {
 
   return (
     <div>
+      <Link to="/diary" className="flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-200 mb-4">
+        <ArrowLeft size={16} /> Přehled
+      </Link>
       <h1 className="text-3xl mb-8 flex items-center gap-3">
         <HistoryIcon className="text-blood-600" /> Historie tréninků
       </h1>

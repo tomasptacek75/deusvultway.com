@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Mic, Square, Check, Calendar, Clock, NotebookPen, RotateCcw } from 'lucide-react'
 import { apiClient } from '../../api/client'
@@ -23,13 +23,24 @@ export default function DiaryRecord() {
   const chunksRef = useRef([])
   const streamRef = useRef(null)
 
+  // Mikrofonní stream se mezi nahrávkami nezavírá (jen se stopne/spustí MediaRecorder nad ním) —
+  // opakované getUserMedia po ukončení předchozích stop() na tracích některé prohlížeče (hlavně
+  // iOS Safari v PWA režimu) berou jako nové oprávnění a znovu se ptají, i když bylo už jednou
+  // povoleno. Stream se skutečně uvolní až při odchodu ze stránky (cleanup effect níže).
+  useEffect(() => () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+  }, [])
+
   async function startRecording() {
     setError('')
     setEntry(null)
     setSaved(false)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
+      let stream = streamRef.current
+      if (!stream || stream.getTracks().some((t) => t.readyState === 'ended')) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        streamRef.current = stream
+      }
       const mimeType = pickMimeType()
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       chunksRef.current = []
@@ -45,7 +56,6 @@ export default function DiaryRecord() {
 
   function stopRecording() {
     mediaRecorderRef.current?.stop()
-    streamRef.current?.getTracks().forEach((t) => t.stop())
     setRecording(false)
   }
 

@@ -76,13 +76,13 @@ export default function DiaryHistory() {
                       <TimeSelect
                         value={e.start_time}
                         onChange={(v) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, start_time: v } : x)))}
-                        className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
+                        className="w-14 px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
                       />
                       <span className="text-neutral-600">–</span>
                       <TimeSelect
                         value={e.end_time}
                         onChange={(v) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, end_time: v } : x)))}
-                        className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
+                        className="w-14 px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
                       />
                     </div>
                     <DiaryEntryEditor

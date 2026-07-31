@@ -56,12 +56,12 @@ export default function DiaryManualEntry() {
             <span>Čas:</span>
             <TimeSelect
               value={startTime} onChange={setStartTime}
-              className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
+              className="w-14 px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
             />
             <span className="text-neutral-600">–</span>
             <TimeSelect
               value={endTime} onChange={setEndTime}
-              className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
+              className="w-14 px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
             />
           </div>
         </div>

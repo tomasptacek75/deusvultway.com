@@ -45,12 +45,12 @@ export default function DiaryEntryEditor({ exercises, onChange }) {
                 <span className="text-neutral-500 w-6">#{setIdx + 1}</span>
                 <input
                   type="number" value={s.reps ?? ''} onChange={(ev) => updateSet(exIdx, setIdx, 'reps', ev.target.value)}
-                  placeholder="opak." className="w-20 px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800"
+                  placeholder="opak." className="w-14 px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800"
                 />
                 <span className="text-neutral-600">×</span>
                 <input
                   type="number" step="0.5" value={s.weight_kg ?? ''} onChange={(ev) => updateSet(exIdx, setIdx, 'weight_kg', ev.target.value)}
-                  placeholder="kg" className="w-20 px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800"
+                  placeholder="kg" className="w-16 px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800"
                 />
                 <span className="text-neutral-600">kg</span>
                 <button onClick={() => removeSet(exIdx, setIdx)} className="text-neutral-600 hover:text-blood-400 ml-auto p-1">

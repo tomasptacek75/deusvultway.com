@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mic, Square, Check, Calendar, Clock, NotebookPen, RotateCcw, Trash2 } from 'lucide-react'
+import { Mic, Square, Check, Calendar, Clock, NotebookPen, RotateCcw, Trash2, MicOff } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
@@ -19,6 +19,9 @@ export default function DiaryRecord() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [entry, setEntry] = useState(null)
+  // 'unknown' | 'granted' | 'denied' | 'prompt' — Safari nepodporuje dotaz na 'microphone' přes
+  // Permissions API, tam to zůstane 'unknown' a chová se to jako dřív (bez indikace předem).
+  const [micPermission, setMicPermission] = useState('unknown')
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
   const streamRef = useRef(null)
@@ -32,6 +35,19 @@ export default function DiaryRecord() {
     streamRef.current?.getTracks().forEach((t) => t.stop())
   }, [])
 
+  useEffect(() => {
+    if (!navigator.permissions?.query) return
+    let status
+    navigator.permissions.query({ name: 'microphone' })
+      .then((s) => {
+        status = s
+        setMicPermission(s.state)
+        s.onchange = () => setMicPermission(s.state)
+      })
+      .catch(() => {})
+    return () => { if (status) status.onchange = null }
+  }, [])
+
   async function startRecording() {
     setError('')
     setEntry(null)
@@ -41,6 +57,7 @@ export default function DiaryRecord() {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true })
         streamRef.current = stream
       }
+      setMicPermission('granted')
       const mimeType = pickMimeType()
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       chunksRef.current = []
@@ -49,8 +66,14 @@ export default function DiaryRecord() {
       mediaRecorderRef.current = recorder
       recorder.start()
       setRecording(true)
-    } catch {
-      setError('Nepodařilo se získat přístup k mikrofonu. Zkontroluj oprávnění prohlížeče.')
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setMicPermission('denied')
+      } else if (err.name === 'NotFoundError') {
+        setError('Na tomhle zařízení jsme nenašli mikrofon.')
+      } else {
+        setError('Nepodařilo se získat přístup k mikrofonu. Zkontroluj oprávnění prohlížeče.')
+      }
     }
   }
 
@@ -112,18 +135,31 @@ export default function DiaryRecord() {
 
       {!entry && (
         <div className="flex flex-col items-center justify-center py-12">
-          <button
-            onClick={recording ? stopRecording : startRecording}
-            disabled={processing}
-            className={`w-24 h-24 rounded-full flex items-center justify-center transition-colors ${
-              recording ? 'bg-blood-700 animate-pulse' : 'bg-neutral-900 border border-neutral-800 hover:border-blood-600'
-            }`}
-          >
-            {recording ? <Square className="text-white" size={28} /> : <Mic className="text-blood-500" size={28} />}
-          </button>
-          <p className="text-neutral-400 text-sm mt-4">
-            {processing ? 'Zpracovávám nahrávku, chvilku strpení…' : recording ? 'Nahrávám… klepnutím ukonči' : 'Klepni a popiš svůj trénink'}
-          </p>
+          {micPermission === 'denied' ? (
+            <>
+              <div className="w-24 h-24 rounded-full flex items-center justify-center bg-neutral-900 border border-blood-700">
+                <MicOff className="text-blood-500" size={28} />
+              </div>
+              <p className="text-blood-400 text-sm mt-4 text-center max-w-xs">
+                Přístup k mikrofonu je zablokovaný. Povol ho v nastavení prohlížeče (ikona zámku/„aA" vedle adresy, nebo Nastavení → Safari → Mikrofon) a stránku načti znovu.
+              </p>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={recording ? stopRecording : startRecording}
+                disabled={processing}
+                className={`w-24 h-24 rounded-full flex items-center justify-center transition-colors ${
+                  recording ? 'bg-blood-700 animate-pulse' : 'bg-neutral-900 border border-neutral-800 hover:border-blood-600'
+                }`}
+              >
+                {recording ? <Square className="text-white" size={28} /> : <Mic className="text-blood-500" size={28} />}
+              </button>
+              <p className="text-neutral-400 text-sm mt-4">
+                {processing ? 'Zpracovávám nahrávku, chvilku strpení…' : recording ? 'Nahrávám… klepnutím ukonči' : micPermission === 'prompt' ? 'Klepnutím povolíš mikrofon a spustíš nahrávání' : 'Klepni a popiš svůj trénink'}
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -144,12 +180,12 @@ export default function DiaryRecord() {
               <span>Čas:</span>
               <TimeSelect
                 value={entry.start_time} onChange={(v) => setEntry((prev) => ({ ...prev, start_time: v }))}
-                className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
+                className="w-14 px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
               />
               <span className="text-neutral-600">–</span>
               <TimeSelect
                 value={entry.end_time} onChange={(v) => setEntry((prev) => ({ ...prev, end_time: v }))}
-                className="px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
+                className="w-14 px-1 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm"
               />
             </div>
             {entry.transcript && <div className="italic text-neutral-500">„{entry.transcript}“</div>}

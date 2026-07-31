@@ -28,6 +28,7 @@ import DiaryResetRequest from './pages/diary/DiaryResetRequest'
 import DiaryResetConfirm from './pages/diary/DiaryResetConfirm'
 import DiaryHome from './pages/diary/DiaryHome'
 import DiaryRecord from './pages/diary/DiaryRecord'
+import DiaryManualEntry from './pages/diary/DiaryManualEntry'
 import DiaryHistory from './pages/diary/DiaryHistory'
 import DiaryNextWorkout from './pages/diary/DiaryNextWorkout'
 import DiaryGoal from './pages/diary/DiaryGoal'
@@ -90,6 +91,7 @@ function App() {
       >
         <Route index element={<DiaryHome />} />
         <Route path="record" element={<DiaryRecord />} />
+        <Route path="manual" element={<DiaryManualEntry />} />
         <Route path="history" element={<DiaryHistory />} />
         <Route path="next-workout" element={<DiaryNextWorkout />} />
         <Route path="goal" element={<DiaryGoal />} />

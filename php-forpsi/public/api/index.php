@@ -1590,6 +1590,19 @@ if ($method === 'POST' && $path === '/diary/upload') {
     jsonResponse(fetchDiaryEntryWithSets($pdo, $entryId), 201);
 }
 
+if ($method === 'POST' && $path === '/diary/entries') {
+    $auth = requireRole($config, 'diary');
+    $b = jsonInput();
+    $userId = (int)$auth['user_id'];
+    $entryId = insertRow($pdo, 'diary_entries', [
+        'user_id' => $userId, 'recorded_at' => trim((string)($b['recorded_at'] ?? '')) ?: date('Y-m-d'),
+        'transcript' => null, 'ai_raw_json' => null, 'status' => 'parsed',
+        'notes' => $b['notes'] ?? null, 'start_time' => $b['start_time'] ?? null, 'end_time' => $b['end_time'] ?? null,
+    ]);
+    replaceDiarySets($pdo, $entryId, $b['exercises'] ?? []);
+    jsonResponse(fetchDiaryEntryWithSets($pdo, $entryId), 201);
+}
+
 if ($method === 'GET' && $path === '/diary/entries') {
     $auth = requireRole($config, 'diary');
     $ids = fetchAll($pdo, "SELECT id FROM diary_entries WHERE user_id=? ORDER BY recorded_at DESC, id DESC", [$auth['user_id']]);

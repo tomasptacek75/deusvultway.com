@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mic, History, Sparkles } from 'lucide-react'
+import { Mic, History, Sparkles, PenLine } from 'lucide-react'
 import { apiClient } from '../../api/client'
 
 export default function DiaryHome() {
@@ -15,16 +15,24 @@ export default function DiaryHome() {
       <h1 className="text-3xl mb-8">Přehled</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-        <Link
-          to="/diary/record"
-          className="rounded-lg border border-blood-700 bg-blood-900/20 p-6 flex items-center gap-4 hover:bg-blood-900/30 transition-colors"
-        >
-          <Mic className="text-blood-500" size={28} />
-          <div>
-            <div className="font-semibold">Namluvit trénink</div>
-            <div className="text-sm text-neutral-400">Řekni, co jsi cvičil, AI to zapíše</div>
-          </div>
-        </Link>
+        <div className="flex flex-col gap-2">
+          <Link
+            to="/diary/record"
+            className="rounded-lg border border-blood-700 bg-blood-900/20 p-6 flex items-center gap-4 hover:bg-blood-900/30 transition-colors"
+          >
+            <Mic className="text-blood-500" size={28} />
+            <div>
+              <div className="font-semibold">Namluvit trénink</div>
+              <div className="text-sm text-neutral-400">Řekni, co jsi cvičil, AI to zapíše</div>
+            </div>
+          </Link>
+          <Link
+            to="/diary/manual"
+            className="flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-200 px-1"
+          >
+            <PenLine size={14} /> Nebo zapsat ručně
+          </Link>
+        </div>
         <Link
           to="/diary/next-workout"
           className="rounded-lg border border-neutral-800 bg-neutral-900 p-6 flex items-center gap-4 hover:border-neutral-700 transition-colors"

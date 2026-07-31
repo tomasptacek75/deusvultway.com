@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mic, Square, Check, Calendar, Clock, NotebookPen } from 'lucide-react'
+import { Mic, Square, Check, Calendar, Clock, NotebookPen, RotateCcw } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
@@ -64,6 +64,12 @@ export default function DiaryRecord() {
     } finally {
       setProcessing(false)
     }
+  }
+
+  function recordAgain() {
+    setEntry(null)
+    setSaved(false)
+    setError('')
   }
 
   async function saveEdits() {
@@ -143,9 +149,12 @@ export default function DiaryRecord() {
             />
           </label>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-3 pt-2 flex-wrap">
             <button onClick={saveEdits} className="px-4 py-2.5 rounded-md bg-blood-700 hover:bg-blood-600 font-medium flex items-center gap-2">
               <Check size={16} /> Uložit úpravy
+            </button>
+            <button onClick={recordAgain} className="px-4 py-2.5 rounded-md border border-neutral-800 hover:border-neutral-700 text-neutral-300 font-medium flex items-center gap-2">
+              <RotateCcw size={16} /> Nahrát znovu
             </button>
             {saved && <span className="text-sm text-neutral-400">Uloženo.</span>}
             <Link to="/diary/history" className="text-sm text-neutral-400 hover:text-neutral-200 ml-auto">Do historie →</Link>

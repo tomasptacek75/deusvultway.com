@@ -13,7 +13,7 @@ export default function DiaryHome() {
   return (
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-4">
           <Link
             to="/diary/record"
             className="rounded-lg border border-blood-700 bg-blood-900/20 p-6 flex items-center gap-4 hover:bg-blood-900/30 transition-colors"
@@ -26,9 +26,13 @@ export default function DiaryHome() {
           </Link>
           <Link
             to="/diary/manual"
-            className="flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-200 px-1"
+            className="rounded-lg border border-neutral-800 bg-neutral-900 p-6 flex items-center gap-4 hover:border-neutral-700 transition-colors"
           >
-            <PenLine size={14} /> Nebo to zapiš ty
+            <PenLine className="text-blood-500" size={28} />
+            <div>
+              <div className="font-semibold">Zapsat ručně</div>
+              <div className="text-sm text-neutral-400">Nebo to zapiš ty</div>
+            </div>
           </Link>
         </div>
         <Link

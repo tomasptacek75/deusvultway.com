@@ -41,9 +41,12 @@ const trainerLinks = [
   { to: '/trainer', label: 'Klienti', labelEn: 'Clients', end: true },
   { to: '/trainer/plans', label: 'Plány', labelEn: 'Plans' },
   { to: '/trainer/teams', label: 'Týmy', labelEn: 'Teams' },
-  // "Vybavení" a "Cviky" schované z menu 2026-08-02 na žádost uživatele — routy
-  // `/trainer/equipment` a `/trainer/exercises` zůstávají funkční (jen bez odkazu v
-  // navigaci), ať jde snadno vrátit zpět, kdyby je David chtěl.
+  { to: '/trainer/exercises', label: 'Cviky', labelEn: 'Exercises' },
+  // "Vybavení" schované z menu 2026-08-02 na žádost uživatele — routa
+  // `/trainer/equipment` zůstává funkční (jen bez odkazu v navigaci). "Cviky" bylo krátce
+  // schované taky, ale vráceno zpět — je to jediné místo, kde David nahrává/edituje videa
+  // cviků k Davidovu vlastnímu bodu 2 z feedbacku (viz
+  // project_bloodandguts_david_feedback_implementation memory).
   { to: '/trainer/content', label: 'Knihovna', labelEn: 'Library' },
   { to: '/trainer/inquiries', label: 'Poptávky', labelEn: 'Inquiries' },
 ]
@@ -54,10 +57,13 @@ const clientLinks = [
   { to: '/client/progress', label: 'Progres', labelEn: 'Progress' },
   { to: '/client/nutrition', label: 'Výživa', labelEn: 'Nutrition' },
   { to: '/client/gym', label: 'Posilovna', labelEn: 'Gym' },
-  // "Historie", "Knihovna cviků" a "Knihovna" schované z menu 2026-08-02 na žádost
-  // uživatele — routy `/client/history`, `/client/exercises` a `/client/library` zůstávají
-  // funkční, jen bez odkazu v navigaci. Osobní rekordy z Historie se teď zobrazují na
-  // Progresu (viz Progress.jsx), zbytek Historie (dokončené tréninky) zůstal na své routě.
+  { to: '/client/exercises', label: 'Knihovna cviků', labelEn: 'Exercise library' },
+  // "Historie" a obecná "Knihovna" schované z menu 2026-08-02 na žádost uživatele — routy
+  // `/client/history` a `/client/library` zůstávají funkční, jen bez odkazu v navigaci.
+  // Osobní rekordy z Historie se teď zobrazují na Progresu (viz Progress.jsx). "Knihovna
+  // cviků" bylo krátce schované taky, ale vráceno zpět — je to skutečná realizace
+  // Davidova bodu 2 z feedbacku (video ke každému cviku z katalogu), ne duplicita obecné
+  // Knihovny (ta měla jen 1 placeholder záznam v "Video ukázky tréninku").
   { to: '/client/o-davidovi', label: 'O Davidovi', labelEn: 'About David' },
   { to: '/client/messages', label: 'Zprávy', labelEn: 'Messages' },
   { to: '/client/billing', label: 'Platby', labelEn: 'Billing' },

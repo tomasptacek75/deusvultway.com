@@ -10,7 +10,7 @@ export default function ContentLibrary() {
   const [sections, setSections] = useState([])
 
   useEffect(() => {
-    apiClient.get('/content-sections').then((r) => setSections(r.data))
+    apiClient.get('/content-sections').then((r) => setSections(r.data.filter((s) => (s.kind || 'library') === 'library')))
   }, [])
 
   return (

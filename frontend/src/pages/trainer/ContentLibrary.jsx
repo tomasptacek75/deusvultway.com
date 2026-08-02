@@ -4,13 +4,14 @@ import { apiClient } from '../../api/client'
 import { useLanguage } from '../../i18n/LanguageContext'
 
 const emptyItemForm = { type: 'video', title: '', title_en: '', body: '', body_en: '', url: '' }
+const emptySectionForm = { title: '', kind: 'library' }
 
 // Obsahová knihovna (video ukázky, strava, playlisty, cokoli dalšího) — viditelná všem
 // klientům (osobní i portál), ne jen portálovým. Skrýt, nikdy smazat: PUT s active=0/1.
 export default function ContentLibrary() {
   const { t } = useLanguage()
   const [sections, setSections] = useState([])
-  const [newSectionTitle, setNewSectionTitle] = useState('')
+  const [newSection, setNewSection] = useState(emptySectionForm)
   const [showNewSection, setShowNewSection] = useState(false)
   const [expanded, setExpanded] = useState(null)
 
@@ -22,8 +23,8 @@ export default function ContentLibrary() {
 
   async function createSection(e) {
     e.preventDefault()
-    await apiClient.post('/content-sections', { title: newSectionTitle })
-    setNewSectionTitle('')
+    await apiClient.post('/content-sections', newSection)
+    setNewSection(emptySectionForm)
     setShowNewSection(false)
     load()
   }
@@ -48,14 +49,22 @@ export default function ContentLibrary() {
       </div>
 
       {showNewSection && (
-        <form onSubmit={createSection} className="mb-6 rounded-lg border border-neutral-800 bg-neutral-900 p-5 flex gap-3">
+        <form onSubmit={createSection} className="mb-6 rounded-lg border border-neutral-800 bg-neutral-900 p-5 flex flex-wrap gap-3">
           <input
             required
             placeholder={t('Název sekce (např. Strava)', 'Section title (e.g. Nutrition)')}
-            value={newSectionTitle}
-            onChange={(e) => setNewSectionTitle(e.target.value)}
-            className="flex-1 bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2"
+            value={newSection.title}
+            onChange={(e) => setNewSection({ ...newSection, title: e.target.value })}
+            className="flex-1 min-w-[12rem] bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2"
           />
+          <select
+            value={newSection.kind}
+            onChange={(e) => setNewSection({ ...newSection, kind: e.target.value })}
+            className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2"
+          >
+            <option value="library">{t('Knihovna', 'Library')}</option>
+            <option value="about_me">{t('O mně (Davidova zóna)', 'About me (David’s zone)')}</option>
+          </select>
           <button type="submit" className="bg-blood-700 hover:bg-blood-600 transition-colors px-4 py-2 rounded-md font-medium">
             {t('Uložit', 'Save')}
           </button>
@@ -73,6 +82,11 @@ export default function ContentLibrary() {
                 {expanded === s.id ? <ChevronUp size={18} className="shrink-0" /> : <ChevronDown size={18} className="shrink-0" />}
                 <span className="font-semibold truncate">{t(s.title, s.title_en || s.title)}</span>
                 <span className="text-xs text-neutral-500 shrink-0">({s.items.length})</span>
+                {s.kind === 'about_me' && (
+                  <span className="text-[10px] uppercase tracking-wide text-blood-500 border border-blood-900/50 rounded px-1.5 py-0.5 shrink-0">
+                    {t('O mně', 'About me')}
+                  </span>
+                )}
               </button>
               <button onClick={() => toggleSectionActive(s)} className="text-neutral-600 hover:text-blood-500 shrink-0" title={s.active ? t('Skrýt sekci', 'Hide section') : t('Odkrýt sekci', 'Show section')}>
                 {s.active ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -134,6 +148,7 @@ function SectionEditor({ section, onChange }) {
                 <option value="video">{t('Video', 'Video')}</option>
                 <option value="article">{t('Text', 'Article')}</option>
                 <option value="playlist">{t('Playlist', 'Playlist')}</option>
+                <option value="qa">{t('Otázka a odpověď', 'Q&A')}</option>
               </select>
               <input
                 required
@@ -194,6 +209,7 @@ function SectionEditor({ section, onChange }) {
           <option value="video">{t('Video', 'Video')}</option>
           <option value="article">{t('Text', 'Article')}</option>
           <option value="playlist">{t('Playlist', 'Playlist')}</option>
+          <option value="qa">{t('Otázka a odpověď', 'Q&A')}</option>
         </select>
         <input
           required

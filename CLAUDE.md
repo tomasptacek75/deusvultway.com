@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-POC (proof of concept) for a strength-training coaching business run by David (BloodAndGuts). A marketing landing page plus a trainer/client portal: David assigns clients workouts (exercises/sets/reps/weight), writes nutrition plans, and clients log what they actually did, track bodyweight/measurements, and set goals. Domain `bloodandguts.cz` is live and this POC is currently deployed there.
+POC (proof of concept) for a strength-training coaching business run by David. A marketing landing page plus a trainer/client portal: David assigns clients workouts (exercises/sets/reps/weight), writes nutrition plans, and clients log what they actually did, track bodyweight/measurements, and set goals. Domain `bloodandguts.cz` is live and this POC is currently deployed there.
+
+**Brand rename in progress (2026-08-02):** the trainer, David, plans to rename his brand from "Blood & Guts" to "Deus Vult Way" (trademark concern — "Blood & Guts" is Dorian Yates' training philosophy name, David's biggest idol). On-screen branding (header logo, page title, PWA manifest name, `org_name` in email signatures) has already been updated to "Deus Vult Way" at the developer's request, ahead of David's final confirmation. The actual domain (`bloodandguts.cz`), FTP deploy targets, CORS allowlist, and `noreply@bloodandguts.cz` mailbox are deliberately **not yet changed** — those wait for David to confirm the name and for the developer to register a new domain/set up hosting, which isn't something doable from this repo alone. Don't be surprised if the visible brand name and the actual domain disagree for a while; that's expected mid-transition, not a bug.
 
 This project deliberately mirrors the architecture of the sibling project `../Kamata.cz` (same developer, same hosting provider) — when in doubt about a pattern, check how Kamata.cz solved it before inventing something new.
 

@@ -343,6 +343,63 @@ if ($method === 'DELETE' && count($seg) === 4 && $seg[0] === 'gyms' && $seg[2] =
     jsonResponse(['ok' => true]);
 }
 
+// ── KLIENTEM VLASTNĚNÁ POSILOVNA — na rozdíl od gyms (Davidův katalog) si klient sám ────
+// vloží odkaz na SVOJI posilovnu, David u ní nechává poznámky ke strojům (comments).
+
+if ($method === 'GET' && count($seg) === 3 && $seg[0] === 'clients' && $seg[2] === 'gym-link') {
+    $auth = requireAuth($config);
+    $clientId = (int)$seg[1];
+    assertClientAccess($pdo, $auth, $clientId);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM client_gyms WHERE client_id=?", [$clientId]));
+}
+
+if ($method === 'PUT' && count($seg) === 3 && $seg[0] === 'clients' && $seg[2] === 'gym-link') {
+    $auth = requireAuth($config);
+    $clientId = (int)$seg[1];
+    assertClientAccess($pdo, $auth, $clientId);
+    $b = jsonInput();
+    if (empty($b['name'])) jsonResponse(['detail' => 'Název posilovny je povinný'], 400);
+    $existing = fetchOne($pdo, "SELECT * FROM client_gyms WHERE client_id=?", [$clientId]);
+    if ($existing) {
+        $pdo->prepare("UPDATE client_gyms SET name=?, url=?, updated_at=CURRENT_TIMESTAMP WHERE client_id=?")
+            ->execute([$b['name'], $b['url'] ?? null, $clientId]);
+    } else {
+        insertRow($pdo, 'client_gyms', ['client_id' => $clientId, 'name' => $b['name'], 'url' => $b['url'] ?? null]);
+    }
+    jsonResponse(fetchOne($pdo, "SELECT * FROM client_gyms WHERE client_id=?", [$clientId]));
+}
+
+if ($method === 'GET' && count($seg) === 4 && $seg[0] === 'clients' && $seg[2] === 'gym-link' && $seg[3] === 'comments') {
+    $auth = requireAuth($config);
+    $clientId = (int)$seg[1];
+    assertClientAccess($pdo, $auth, $clientId);
+    $gym = fetchOne($pdo, "SELECT id FROM client_gyms WHERE client_id=?", [$clientId]);
+    if (!$gym) jsonResponse([]);
+    jsonResponse(fetchAll($pdo,
+        "SELECT c.*, u.display_name AS author_name FROM client_gym_comments c JOIN users u ON u.id=c.author_id WHERE c.client_gym_id=? ORDER BY c.created_at",
+        [(int)$gym['id']]
+    ));
+}
+
+if ($method === 'POST' && count($seg) === 4 && $seg[0] === 'clients' && $seg[2] === 'gym-link' && $seg[3] === 'comments') {
+    $auth = requireAuth($config);
+    $clientId = (int)$seg[1];
+    assertClientAccess($pdo, $auth, $clientId);
+    $gym = fetchOne($pdo, "SELECT id FROM client_gyms WHERE client_id=?", [$clientId]);
+    if (!$gym) jsonResponse(['detail' => 'Klient ještě nemá zadanou posilovnu'], 404);
+    $b = jsonInput();
+    $body = trim((string)($b['body'] ?? ''));
+    if ($body === '') jsonResponse(['detail' => 'body je povinné'], 400);
+    $id = insertRow($pdo, 'client_gym_comments', ['client_gym_id' => (int)$gym['id'], 'author_id' => $auth['user_id'], 'body' => $body]);
+    $recipientRole = $auth['role'] === 'client' ? 'trainer' : 'client';
+    $recipientId = $recipientRole === 'trainer'
+        ? (int)fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1")['id']
+        : $clientId;
+    notify($pdo, $recipientId, 'comment', ($auth['name'] ?? 'Uživatel') . ' přidal(a) poznámku k posilovně',
+        $recipientRole === 'trainer' ? "/trainer/clients/{$clientId}" : '/client/gym');
+    jsonResponse(fetchOne($pdo, "SELECT c.*, u.display_name AS author_name FROM client_gym_comments c JOIN users u ON u.id=c.author_id WHERE c.id=?", [$id]), 201);
+}
+
 // ── KNIHOVNA OBSAHU (portál) — videa/strava/playlisty, viditelné všem klientům ──
 
 if ($method === 'GET' && $path === '/content-sections') {
@@ -362,9 +419,10 @@ if ($method === 'POST' && $path === '/content-sections') {
     $auth = requireRole($config, 'trainer');
     $b = jsonInput();
     if (empty($b['title'])) jsonResponse(['detail' => 'title je povinné'], 400);
+    $kind = in_array($b['kind'] ?? null, ['library', 'about_me'], true) ? $b['kind'] : 'library';
     $id = insertRow($pdo, 'content_sections', [
         'trainer_id' => $auth['user_id'], 'title' => $b['title'], 'title_en' => $b['title_en'] ?? null,
-        'order_num' => $b['order_num'] ?? 0,
+        'order_num' => $b['order_num'] ?? 0, 'kind' => $kind,
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM content_sections WHERE id=?", [$id]), 201);
 }
@@ -375,9 +433,10 @@ if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'content-sections') {
     $existing = fetchOne($pdo, "SELECT * FROM content_sections WHERE id=? AND trainer_id=?", [$id, $auth['user_id']]);
     if (!$existing) jsonResponse(['detail' => 'Sekce nenalezena'], 404);
     $b = jsonInput();
-    $pdo->prepare("UPDATE content_sections SET title=?, title_en=?, order_num=?, active=? WHERE id=?")->execute([
+    $kind = in_array($b['kind'] ?? null, ['library', 'about_me'], true) ? $b['kind'] : $existing['kind'];
+    $pdo->prepare("UPDATE content_sections SET title=?, title_en=?, order_num=?, active=?, kind=? WHERE id=?")->execute([
         $b['title'] ?? $existing['title'], $b['title_en'] ?? $existing['title_en'],
-        $b['order_num'] ?? $existing['order_num'], isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
+        $b['order_num'] ?? $existing['order_num'], isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $kind, $id,
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM content_sections WHERE id=?", [$id]));
 }
@@ -632,6 +691,75 @@ if ($method === 'POST' && $path === '/goals') {
     jsonResponse(fetchOne($pdo, "SELECT * FROM goals WHERE id=?", [$id]), 201);
 }
 
+// ── MĚSÍČNÍ VÝZVY ────────────────────────────────────────────────────
+// status/completed_at smí měnit jen trenér, visibility_opt_in jen sám klient na svém
+// řádku — dvě samostatné endpointy, ať jedna role omylem nepřepíše pole druhé.
+
+if ($method === 'GET' && $path === '/challenges') {
+    $auth = requireAuth($config);
+    $clientId = isset($_GET['client_id']) ? (int)$_GET['client_id'] : (int)$auth['user_id'];
+    assertClientAccess($pdo, $auth, $clientId);
+    jsonResponse(fetchAll($pdo, "SELECT * FROM challenges WHERE client_id=? ORDER BY period_month DESC", [$clientId]));
+}
+
+// Veřejný (jen pro přihlášené) motivační feed — jediné místo v appce, kde je vidět kousek
+// dat jednoho klienta druhému, a jen po jeho vlastním opt-inu. Záměrně bez assertClientAccess
+// a záměrně jen tahle 3 pole — nikdy nerozšiřovat o join na subscriptions/body_metrics apod.
+if ($method === 'GET' && $path === '/challenges/community') {
+    requireAuth($config);
+    jsonResponse(fetchAll($pdo, "
+        SELECT c.description, c.completed_at, u.display_name
+        FROM challenges c JOIN users u ON u.id=c.client_id
+        WHERE c.status='completed' AND c.visibility_opt_in=1
+        ORDER BY c.completed_at DESC LIMIT 20
+    "));
+}
+
+if ($method === 'POST' && $path === '/challenges') {
+    $auth = requireRole($config, 'trainer');
+    $b = jsonInput();
+    $clientId = (int)($b['client_id'] ?? 0);
+    assertClientAccess($pdo, $auth, $clientId);
+    if (empty($b['description']) || empty($b['period_month'])) {
+        jsonResponse(['detail' => 'description a period_month jsou povinné'], 400);
+    }
+    try {
+        $id = insertRow($pdo, 'challenges', [
+            'client_id' => $clientId, 'trainer_id' => $auth['user_id'], 'description' => $b['description'],
+            'period_month' => $b['period_month'], 'reward_note' => $b['reward_note'] ?? null,
+        ]);
+    } catch (\Exception) {
+        jsonResponse(['detail' => 'Tenhle klient už na daný měsíc výzvu má'], 409);
+    }
+    jsonResponse(fetchOne($pdo, "SELECT * FROM challenges WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 3 && $seg[0] === 'challenges' && $seg[2] === 'status') {
+    $auth = requireRole($config, 'trainer');
+    $challenge = fetchOne($pdo, "SELECT * FROM challenges WHERE id=?", [(int)$seg[1]]);
+    if (!$challenge) jsonResponse(['detail' => 'Výzva nenalezena'], 404);
+    $b = jsonInput();
+    if (!in_array($b['status'] ?? null, ['active', 'completed', 'missed'], true)) {
+        jsonResponse(['detail' => 'status musí být active|completed|missed'], 400);
+    }
+    $pdo->prepare("UPDATE challenges SET status=?, completed_at=? WHERE id=?")->execute([
+        $b['status'], $b['status'] === 'completed' ? date('Y-m-d H:i:s') : null, (int)$seg[1],
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM challenges WHERE id=?", [(int)$seg[1]]));
+}
+
+if ($method === 'PUT' && count($seg) === 3 && $seg[0] === 'challenges' && $seg[2] === 'visibility') {
+    $auth = requireAuth($config);
+    $challenge = fetchOne($pdo, "SELECT * FROM challenges WHERE id=?", [(int)$seg[1]]);
+    if (!$challenge) jsonResponse(['detail' => 'Výzva nenalezena'], 404);
+    if ($auth['role'] !== 'client' || $auth['user_id'] !== (int)$challenge['client_id']) {
+        jsonResponse(['detail' => 'Přístup zamítnut'], 403);
+    }
+    $b = jsonInput();
+    $pdo->prepare("UPDATE challenges SET visibility_opt_in=? WHERE id=?")->execute([(int)(bool)($b['visibility_opt_in'] ?? false), (int)$seg[1]]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM challenges WHERE id=?", [(int)$seg[1]]));
+}
+
 // ── TĚLESNÉ MÍRY ─────────────────────────────────────────────────────
 
 if ($method === 'GET' && $path === '/body-metrics') {
@@ -773,6 +901,33 @@ if ($method === 'POST' && count($seg) === 3 && $seg[0] === 'clients' && $seg[2] 
         'recorded_at' => $b['recorded_at'] ?? date('Y-m-d'),
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM client_one_rms WHERE id=?", [$id]), 201);
+}
+
+// ── REP-MAX (6/10 opakování) — David nechce ruční testování 1RM, jen powerlifteři testují ──
+// singly; client_one_rms výš zůstává beze změny pro percent_1rm progresi, tohle je nový
+// způsob zadávání pro trenéra/klienta (viz RepMaxTab).
+
+if ($method === 'GET' && count($seg) === 3 && $seg[0] === 'clients' && $seg[2] === 'rep-maxes') {
+    $auth = requireAuth($config);
+    assertClientAccess($pdo, $auth, (int)$seg[1]);
+    jsonResponse(fetchAll($pdo,
+        "SELECT r.*, e.name AS exercise_name, e.name_en AS exercise_name_en FROM client_rep_maxes r JOIN exercises e ON e.id=r.exercise_id WHERE r.client_id=? ORDER BY r.recorded_at DESC",
+        [(int)$seg[1]]
+    ));
+}
+
+if ($method === 'POST' && count($seg) === 3 && $seg[0] === 'clients' && $seg[2] === 'rep-maxes') {
+    $auth = requireRole($config, 'trainer');
+    assertClientAccess($pdo, $auth, (int)$seg[1]);
+    $b = jsonInput();
+    if (empty($b['exercise_id']) || empty($b['value_kg']) || !in_array((int)($b['rep_count'] ?? 0), [6, 10], true)) {
+        jsonResponse(['detail' => 'exercise_id, value_kg a rep_count (6 nebo 10) jsou povinné'], 400);
+    }
+    $id = insertRow($pdo, 'client_rep_maxes', [
+        'client_id' => (int)$seg[1], 'exercise_id' => (int)$b['exercise_id'], 'rep_count' => (int)$b['rep_count'],
+        'value_kg' => (float)$b['value_kg'], 'recorded_at' => $b['recorded_at'] ?? date('Y-m-d'),
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM client_rep_maxes WHERE id=?", [$id]), 201);
 }
 
 // ── TRÉNINKOVÉ PLÁNY / BLOKY / MEZOCYKLY (T1, T4, T7) ──────────────────

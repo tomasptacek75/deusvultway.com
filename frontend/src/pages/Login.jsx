@@ -34,7 +34,7 @@ export default function Login() {
         <div className="flex items-center justify-center gap-3 mb-2">
           <Link to="/" className="flex items-center gap-2 font-display text-xl tracking-widest hover:text-blood-400 transition-colors">
             <Dumbbell className="text-blood-600" size={26} />
-            BLOOD<span className="text-blood-600">&amp;</span>GUTS
+            DEUS <span className="text-blood-600">VULT</span> WAY
           </Link>
           <LanguageToggle />
         </div>

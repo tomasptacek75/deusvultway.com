@@ -4,6 +4,7 @@ import { ArrowLeft, Video, Plus, MessageSquare, CheckCircle2, Timer, WifiOff, Cl
 import { apiClient } from '../../api/client'
 import { logSet, getQueuedCount, initOfflineSync } from '../../offlineQueue'
 import CommentThread from '../../components/CommentThread'
+import YouTubeEmbed from '../../components/YouTubeEmbed'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { dayOfWeek, formatDateShort } from '../../utils/date'
 
@@ -198,16 +199,16 @@ function ExerciseCard({ we, onLogged, onSetLogged }) {
         </div>
       )}
 
-      <div className="mb-4 rounded-md bg-neutral-950 border border-dashed border-neutral-800 p-4 flex items-center gap-2 text-sm text-neutral-500">
-        <Video size={16} />
-        {we.video_url ? (
-          <a href={we.video_url} target="_blank" rel="noreferrer" className="text-blood-500 hover:underline">
-            {t('Zobrazit video', 'View video')}
-          </a>
-        ) : (
-          t('Video bude brzy k dispozici', 'Video coming soon')
-        )}
-      </div>
+      {we.video_url ? (
+        <div className="mb-4">
+          <YouTubeEmbed url={we.video_url} label={t('Zobrazit video', 'View video')} />
+        </div>
+      ) : (
+        <div className="mb-4 rounded-md bg-neutral-950 border border-dashed border-neutral-800 p-4 flex items-center gap-2 text-sm text-neutral-500">
+          <Video size={16} />
+          {t('Video bude brzy k dispozici', 'Video coming soon')}
+        </div>
+      )}
 
       {we.logs?.length > 0 && (
         <div className="mb-3 space-y-1">

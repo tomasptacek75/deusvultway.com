@@ -49,6 +49,27 @@ function initSchema(PDO $pdo, array $config): void
     );
     CREATE INDEX IF NOT EXISTS idx_goals_client ON goals(client_id);
 
+    -- Měsíční výzva na klientovu největší slabinu + volitelná odměna. reward_note je volný
+    -- text (např. '10% sleva příští měsíc') — subscriptions/payments nemá žádnou počítanou
+    -- logiku (trenér zapisuje ručně), takže i tady je odměna jen informace pro trenéra, ne
+    -- automatická sleva. visibility_opt_in smí nastavit jen sám klient (nikdy trenér za něj)
+    -- — jediné místo v appce, kde je (po opt-inu) vidět kousek dat jednoho klienta druhému,
+    -- viz GET /challenges/community v api/index.php.
+    CREATE TABLE IF NOT EXISTS challenges (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        trainer_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        description       TEXT NOT NULL,
+        period_month      TEXT NOT NULL,
+        status            TEXT NOT NULL DEFAULT 'active',
+        reward_note       TEXT,
+        visibility_opt_in INTEGER NOT NULL DEFAULT 0,
+        completed_at      DATETIME,
+        created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(client_id, period_month)
+    );
+    CREATE INDEX IF NOT EXISTS idx_challenges_client ON challenges(client_id);
+
     CREATE TABLE IF NOT EXISTS body_metrics (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         client_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -164,6 +185,21 @@ function initSchema(PDO $pdo, array $config): void
         created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_orm_client_ex ON client_one_rms(client_id, exercise_id);
+
+    -- Rep-max (6/10 opakování) — David nechce ruční testování 1RM (dělají jen powerlifteři),
+    -- trackuje se místo toho nejlepší váha na fixní počet opakování. client_one_rms zůstává
+    -- beze změny (percent_1rm progrese v generate-workouts na ní dál může jet), tohle je
+    -- paralelní tabulka pro nový způsob zadávání (viz RepMaxTab).
+    CREATE TABLE IF NOT EXISTS client_rep_maxes (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        exercise_id INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+        rep_count   INTEGER NOT NULL,
+        value_kg    REAL NOT NULL,
+        recorded_at TEXT NOT NULL,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_crm_client_ex ON client_rep_maxes(client_id, exercise_id);
 
     -- ── Tréninkové plány / bloky / mezocykly (T1, T4, T7) ─────────────
     CREATE TABLE IF NOT EXISTS training_plans (
@@ -329,6 +365,27 @@ function initSchema(PDO $pdo, array $config): void
         UNIQUE(gym_id, equipment_id)
     );
     CREATE INDEX IF NOT EXISTS idx_ge_gym ON gym_equipment(gym_id);
+
+    -- Klientem vlastněná posilovna — na rozdíl od gyms (Davidův uzavřený katalog) sem klient
+    -- sám vloží odkaz na SVOJI posilovnu, kdekoli, David u ní pak nechává poznámky ke
+    -- konkrétním strojům (client_gym_comments, stejný vzor jako exercise_comments/
+    -- workout_comments). Nenahrazuje gyms/client_equipment, existuje vedle nich.
+    CREATE TABLE IF NOT EXISTS client_gyms (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        name       TEXT NOT NULL,
+        url        TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS client_gym_comments (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_gym_id INTEGER NOT NULL REFERENCES client_gyms(id) ON DELETE CASCADE,
+        author_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body          TEXT NOT NULL,
+        created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_cgc_gym ON client_gym_comments(client_gym_id);
 
     -- ── Knihovna obsahu (portál) — videa/strava/playlisty/cokoli dalšího, viditelné všem
     -- klientům (osobní i portál). Hide-not-delete přes `active`, stejný vzor jako users.active.
@@ -536,6 +593,17 @@ function initSchema(PDO $pdo, array $config): void
     try { $pdo->exec("ALTER TABLE diary_sets ADD COLUMN distance_km REAL"); } catch (\Exception) {}
 
     $pdo->exec('PRAGMA user_version = 6');
+    }
+
+    if ($schemaVersion < 7) {
+    // Odlišuje Davidovu osobní/motivační zónu ("O mně") od generické portálové knihovny ve
+    // stejných content_sections/content_items tabulkách — volný text jako ostatní *_type
+    // sloupce, default zachovává dosavadní sekce jako 'library'.
+    try { $pdo->exec("ALTER TABLE content_sections ADD COLUMN kind TEXT NOT NULL DEFAULT 'library'"); } catch (\Exception) {}
+
+    seedAboutTrainerContent($pdo);
+
+    $pdo->exec('PRAGMA user_version = 7');
     }
 }
 
@@ -963,6 +1031,51 @@ function seedPortalDemoData(PDO $pdo): void
     $stmt = $pdo->prepare("UPDATE users SET client_type='portal' WHERE email=?");
     foreach ($portalEmails as $email) {
         $stmt->execute([$email]);
+    }
+}
+
+// Davidova osobní/motivační zóna ("O mně") — stejná content_sections/content_items tabulka
+// jako portálová knihovna, jen kind='about_me' ať to jde v klientské appce oddělit. Jen
+// kostra k vyplnění (viz project_bloodandguts_david_feedback v poznámkách) — placeholder
+// texty a example.com odkazy, stejný vzor jako seedPortalDemoData.
+function seedAboutTrainerContent(PDO $pdo): void
+{
+    $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
+    if (!$trainer) return;
+    $trainerId = (int)$trainer['id'];
+
+    $sections = [
+        ['O mně', 'About me', [
+            ['article', 'Moje vlastní tréninky', 'My own training', 'Sem David doplní vlastní tréninky a výkonnost, ať je vidět, že jde příkladem.', 'David will add his own workouts and performance here, to lead by example.', null],
+            ['playlist', 'Můj tréninkový playlist', 'My training playlist', 'Playlist, co mi hraje ve sluchátkách na každém tréninku.', 'The playlist that plays in my ears at every workout.', 'https://open.spotify.com/'],
+        ]],
+        ['Moje výživa a doplňky', 'My nutrition and supplements', [
+            ['article', 'Předtréninkovka, aminokyseliny, potréninkový drink', 'Pre-workout, aminos, post-workout drink', 'Doplňte oblíbené konkrétní produkty a proč je David bere.', 'Fill in specific favorite products and why David takes them.', null],
+            ['article', 'Když chceš být vyřezaný (řezání)', 'When you want to be cut (cutting)', 'Na co se zaměřit ve fázi diety.', 'What to focus on during a cutting phase.', null],
+            ['article', 'Když jedeš do objemu', 'When you are bulking', 'Na co se zaměřit ve fázi nabírání.', 'What to focus on during a bulking phase.', null],
+        ]],
+        ['Motivace', 'Motivation', [
+            ['video', 'Motivační video', 'Motivation video', 'Odkaz na motivační video — bodybuilding idoly, mindset.', 'Link to a motivational video — bodybuilding idols, mindset.', 'https://example.com/video/motivation'],
+        ]],
+        ['Otázky a odpovědi', 'Q&A', [
+            ['qa', 'Co beru před tréninkem?', 'What do you take before training?', 'Sem odpověď.', 'Answer goes here.', null],
+        ]],
+    ];
+    foreach ($sections as [$title, $titleEn, $items]) {
+        $section = fetchOne($pdo, "SELECT id FROM content_sections WHERE trainer_id=? AND title=?", [$trainerId, $title]);
+        if (!$section) {
+            $sectionId = insertRow($pdo, 'content_sections', ['trainer_id' => $trainerId, 'title' => $title, 'title_en' => $titleEn, 'kind' => 'about_me']);
+        } else {
+            $sectionId = (int)$section['id'];
+            $pdo->prepare("UPDATE content_sections SET kind='about_me' WHERE id=?")->execute([$sectionId]);
+        }
+        foreach ($items as [$type, $itemTitle, $itemTitleEn, $body, $bodyEn, $url]) {
+            if (fetchOne($pdo, "SELECT id FROM content_items WHERE section_id=? AND title=?", [$sectionId, $itemTitle])) continue;
+            insertRow($pdo, 'content_items', [
+                'section_id' => $sectionId, 'type' => $type, 'title' => $itemTitle, 'title_en' => $itemTitleEn,
+                'body' => $body, 'body_en' => $bodyEn, 'url' => $url,
+            ]);
+        }
     }
 }
 

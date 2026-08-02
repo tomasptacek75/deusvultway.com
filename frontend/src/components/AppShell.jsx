@@ -27,7 +27,7 @@ export default function AppShell({ links, showLanguageToggle = true, showNotific
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <Link to={homePath()} className="flex items-center gap-2 font-display text-lg tracking-widest shrink-0">
             <Dumbbell className="text-blood-600" size={22} />
-            BLOOD<span className="text-blood-600">&amp;</span>GUTS
+            DEUS <span className="text-blood-600">VULT</span> WAY
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">

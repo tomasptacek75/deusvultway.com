@@ -12,7 +12,7 @@ export default function Progress() {
   const [prs, setPrs] = useState([])
   const [photos, setPhotos] = useState([])
   const [selectedExercise, setSelectedExercise] = useState(null)
-  const [oneRms, setOneRms] = useState([])
+  const [repMaxes, setRepMaxes] = useState([])
   const [goalForm, setGoalForm] = useState({ description: '', target_value: '', target_date: '' })
   const [metricForm, setMetricForm] = useState({ date: new Date().toISOString().slice(0, 10), weight_kg: '', waist_cm: '', chest_cm: '', hips_cm: '', arm_cm: '', thigh_cm: '' })
 
@@ -24,9 +24,9 @@ export default function Progress() {
   useEffect(() => { loadGoals(); loadMetrics(); loadPrs(); loadPhotos() }, [])
 
   useEffect(() => {
-    if (!selectedExercise) { setOneRms([]); return }
-    apiClient.get(`/clients/${user.id}/one-rms`).then((r) => {
-      setOneRms(r.data.filter((o) => o.exercise_id === selectedExercise).slice().reverse())
+    if (!selectedExercise) { setRepMaxes([]); return }
+    apiClient.get(`/clients/${user.id}/rep-maxes`).then((r) => {
+      setRepMaxes(r.data.filter((o) => o.exercise_id === selectedExercise).slice().reverse())
     })
   }, [selectedExercise, user.id])
 
@@ -130,7 +130,7 @@ export default function Progress() {
       </div>
 
       <section className="mb-10">
-        <h2 className="text-lg mb-3 flex items-center gap-2"><TrendingUp className="text-blood-600" size={18} /> {t('Vývoj síly (odhad 1RM)', 'Strength progress (estimated 1RM)')}</h2>
+        <h2 className="text-lg mb-3 flex items-center gap-2"><TrendingUp className="text-blood-600" size={18} /> {t('Vývoj síly (6RM/10RM)', 'Strength progress (6RM/10RM)')}</h2>
         <div className="flex flex-wrap gap-2 mb-3">
           {prs.map((p) => (
             <button
@@ -146,11 +146,21 @@ export default function Progress() {
           {prs.length === 0 && <p className="text-neutral-500 text-sm">{t('Zatím nemáš zaznamenané žádné série.', "You don't have any sets logged yet.")}</p>}
         </div>
         {selectedExercise && (
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-            {oneRms.length > 1 ? (
-              <Chart data={oneRms.map((o) => ({ label: o.recorded_at.slice(5), value: o.value_kg }))} unit=" kg" />
-            ) : (
-              <p className="text-neutral-500 text-sm">{t('Trenér ještě nezaznamenal víc než jedno 1RM u tohoto cviku.', 'Your trainer has not logged more than one 1RM for this exercise yet.')}</p>
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4 space-y-4">
+            {[6, 10].map((rc) => {
+              const values = repMaxes.filter((o) => o.rep_count === rc)
+              if (values.length === 0) return null
+              return (
+                <div key={rc}>
+                  <div className="text-xs text-neutral-500 mb-1">{rc}RM</div>
+                  {values.length > 1
+                    ? <Chart data={values.map((o) => ({ label: o.recorded_at.slice(5), value: o.value_kg }))} unit=" kg" />
+                    : <div className="text-sm">{values[0].value_kg} kg ({values[0].recorded_at})</div>}
+                </div>
+              )
+            })}
+            {repMaxes.length === 0 && (
+              <p className="text-neutral-500 text-sm">{t('Trenér ještě nezaznamenal žádný rep-max u tohoto cviku.', 'Your trainer has not logged a rep-max for this exercise yet.')}</p>
             )}
           </div>
         )}

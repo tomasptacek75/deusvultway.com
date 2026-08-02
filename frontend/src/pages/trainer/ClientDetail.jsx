@@ -10,7 +10,7 @@ import { useLanguage } from '../../i18n/LanguageContext'
 import { findScheduleConflict } from '../../utils/schedule'
 import { dayOfWeek, formatDateShort } from '../../utils/date'
 
-const TAB_KEYS = ['workouts', 'nutrition', 'progress', 'one-rm', 'history', 'billing', 'messages', 'photos', 'equipment']
+const TAB_KEYS = ['workouts', 'nutrition', 'progress', 'one-rm', 'challenge', 'history', 'billing', 'messages', 'photos', 'equipment']
 
 export default function ClientDetail() {
   const { t } = useLanguage()
@@ -90,7 +90,8 @@ export default function ClientDetail() {
           ['workouts', t('Tréninky', 'Workouts')],
           ['nutrition', t('Výživa', 'Nutrition')],
           ['progress', t('Progres', 'Progress')],
-          ['one-rm', '1RM'],
+          ['one-rm', '6RM/10RM'],
+          ['challenge', t('Výzva', 'Challenge')],
           ['history', t('Historie', 'History')],
           ['billing', t('Platby', 'Billing')],
           ['messages', t('Zprávy', 'Messages')],
@@ -112,7 +113,8 @@ export default function ClientDetail() {
       {tab === 'workouts' && <WorkoutsTab clientId={clientId} />}
       {tab === 'nutrition' && <NutritionTab clientId={clientId} />}
       {tab === 'progress' && <ProgressTab clientId={clientId} />}
-      {tab === 'one-rm' && <OneRmTab clientId={clientId} />}
+      {tab === 'one-rm' && <RepMaxTab clientId={clientId} />}
+      {tab === 'challenge' && <ChallengeTab clientId={clientId} />}
       {tab === 'history' && <HistoryTab clientId={clientId} />}
       {tab === 'billing' && <BillingTab clientId={clientId} />}
       {tab === 'messages' && <MessagesTab clientId={clientId} />}
@@ -607,14 +609,16 @@ function ProgressTab({ clientId }) {
   )
 }
 
-function OneRmTab({ clientId }) {
+// Rep-max (6/10 opakování) místo 1RM — David nechce ruční testování singlů, jen powerlifteři
+// je testují. Stejný tvar jako dřívější OneRmTab, jen rep_count navíc a jiný endpoint.
+function RepMaxTab({ clientId }) {
   const { t } = useLanguage()
   const [rows, setRows] = useState([])
   const [exercises, setExercises] = useState([])
-  const [form, setForm] = useState({ exercise_id: '', value_kg: '', recorded_at: new Date().toISOString().slice(0, 10) })
+  const [form, setForm] = useState({ exercise_id: '', rep_count: 6, value_kg: '', recorded_at: new Date().toISOString().slice(0, 10) })
 
   function load() {
-    apiClient.get(`/clients/${clientId}/one-rms`).then((r) => setRows(r.data))
+    apiClient.get(`/clients/${clientId}/rep-maxes`).then((r) => setRows(r.data))
   }
 
   useEffect(() => {
@@ -625,14 +629,15 @@ function OneRmTab({ clientId }) {
   async function submit(e) {
     e.preventDefault()
     if (!form.exercise_id || !form.value_kg) return
-    await apiClient.post(`/clients/${clientId}/one-rms`, form)
+    await apiClient.post(`/clients/${clientId}/rep-maxes`, form)
     setForm({ ...form, value_kg: '' })
     load()
   }
 
   const byExercise = rows.reduce((acc, r) => {
-    acc[r.exercise_name] ??= { nameEn: r.exercise_name_en, values: [] }
-    acc[r.exercise_name].values.push(r)
+    const key = `${r.exercise_name} — ${r.rep_count}RM`
+    acc[key] ??= { nameEn: `${r.exercise_name_en || r.exercise_name} — ${r.rep_count}RM`, values: [] }
+    acc[key].values.push(r)
     return acc
   }, {})
 
@@ -645,13 +650,19 @@ function OneRmTab({ clientId }) {
             {exercises.map((ex) => <option key={ex.id} value={ex.id}>{t(ex.name, ex.name_en || ex.name)}</option>)}
           </select>
         </label>
-        <label className="text-xs text-neutral-500 flex flex-col gap-1">1RM (kg)
+        <label className="text-xs text-neutral-500 flex flex-col gap-1">{t('Opakování', 'Reps')}
+          <select value={form.rep_count} onChange={(e) => setForm({ ...form, rep_count: Number(e.target.value) })} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm">
+            <option value={6}>6RM</option>
+            <option value={10}>10RM</option>
+          </select>
+        </label>
+        <label className="text-xs text-neutral-500 flex flex-col gap-1">{t('Váha (kg)', 'Weight (kg)')}
           <input type="number" step="0.5" value={form.value_kg} onChange={(e) => setForm({ ...form, value_kg: e.target.value })} className="w-28 bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm" />
         </label>
         <label className="text-xs text-neutral-500 flex flex-col gap-1">{t('Datum', 'Date')}
           <input type="date" value={form.recorded_at} onChange={(e) => setForm({ ...form, recorded_at: e.target.value })} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm" />
         </label>
-        <button type="submit" className="bg-blood-700 hover:bg-blood-600 transition-colors rounded-md px-4 py-2 text-sm font-medium">{t('Zaznamenat 1RM', 'Record 1RM')}</button>
+        <button type="submit" className="bg-blood-700 hover:bg-blood-600 transition-colors rounded-md px-4 py-2 text-sm font-medium">{t('Zaznamenat', 'Record')}</button>
       </form>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -662,7 +673,85 @@ function OneRmTab({ clientId }) {
             <div className="text-xs text-neutral-500 mt-2">{t('Nejnovější', 'Latest')}: {values[0].value_kg} kg ({values[0].recorded_at})</div>
           </div>
         ))}
-        {rows.length === 0 && <p className="text-neutral-500 text-sm">{t('Zatím žádná zaznamenaná 1RM.', 'No 1RM recorded yet.')}</p>}
+        {rows.length === 0 && <p className="text-neutral-500 text-sm">{t('Zatím žádný zaznamenaný rep-max.', 'No rep-max recorded yet.')}</p>}
+      </div>
+    </div>
+  )
+}
+
+const STATUS_LABELS = { active: ['Aktivní', 'Active'], completed: ['Splněno', 'Completed'], missed: ['Nesplněno', 'Missed'] }
+
+// Měsíční výzva + odměna — jedna výzva na klienta a měsíc (UNIQUE constraint na backendu,
+// zachyceno jako 409 na duplicitní POST). Viditelnost ostatním klientům si přepíná klient
+// sám na /client/progress, tady jen trenér zakládá a označuje splnění.
+function ChallengeTab({ clientId }) {
+  const { t } = useLanguage()
+  const [rows, setRows] = useState([])
+  const [form, setForm] = useState({ description: '', period_month: new Date().toISOString().slice(0, 7), reward_note: '' })
+  const [error, setError] = useState('')
+
+  function load() {
+    apiClient.get('/challenges', { params: { client_id: clientId } }).then((r) => setRows(r.data))
+  }
+
+  useEffect(load, [clientId])
+
+  async function submit(e) {
+    e.preventDefault()
+    setError('')
+    if (!form.description || !form.period_month) return
+    try {
+      await apiClient.post('/challenges', { ...form, client_id: clientId })
+      setForm({ description: '', period_month: new Date().toISOString().slice(0, 7), reward_note: '' })
+      load()
+    } catch (err) {
+      setError(err.response?.data?.detail || t('Nepodařilo se uložit.', 'Could not save.'))
+    }
+  }
+
+  async function setStatus(id, status) {
+    await apiClient.put(`/challenges/${id}/status`, { status })
+    load()
+  }
+
+  return (
+    <div>
+      <form onSubmit={submit} className="mb-8 rounded-lg border border-neutral-800 bg-neutral-900 p-5 flex flex-wrap gap-3 items-end">
+        <label className="text-xs text-neutral-500 flex flex-col gap-1 flex-1 min-w-[14rem]">{t('Popis výzvy', 'Challenge description')}
+          <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm" />
+        </label>
+        <label className="text-xs text-neutral-500 flex flex-col gap-1">{t('Měsíc', 'Month')}
+          <input type="month" value={form.period_month} onChange={(e) => setForm({ ...form, period_month: e.target.value })} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm" />
+        </label>
+        <label className="text-xs text-neutral-500 flex flex-col gap-1 flex-1 min-w-[12rem]">{t('Odměna (volitelné)', 'Reward (optional)')}
+          <input value={form.reward_note} onChange={(e) => setForm({ ...form, reward_note: e.target.value })} placeholder={t('např. 10% sleva příští měsíc', 'e.g. 10% off next month')} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm" />
+        </label>
+        <button type="submit" className="bg-blood-700 hover:bg-blood-600 transition-colors rounded-md px-4 py-2 text-sm font-medium">{t('Založit výzvu', 'Create challenge')}</button>
+        {error && <p className="text-blood-500 text-xs w-full">{error}</p>}
+      </form>
+
+      <div className="space-y-3">
+        {rows.map((c) => (
+          <div key={c.id} className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs text-neutral-500">{c.period_month}</div>
+                <div className="font-semibold">{c.description}</div>
+                {c.reward_note && <div className="text-sm text-neutral-400 mt-0.5">{t('Odměna', 'Reward')}: {c.reward_note}</div>}
+              </div>
+              <span className={`shrink-0 text-xs rounded px-2 py-1 ${c.status === 'completed' ? 'bg-blood-900/40 text-blood-400' : c.status === 'missed' ? 'bg-neutral-800 text-neutral-500' : 'bg-neutral-800 text-neutral-300'}`}>
+                {t(...STATUS_LABELS[c.status])}
+              </span>
+            </div>
+            {c.status === 'active' && (
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => setStatus(c.id, 'completed')} className="text-xs bg-neutral-800 hover:bg-blood-700 transition-colors rounded-md px-3 py-1.5">{t('Označit splněno', 'Mark completed')}</button>
+                <button onClick={() => setStatus(c.id, 'missed')} className="text-xs bg-neutral-800 hover:bg-neutral-700 transition-colors rounded-md px-3 py-1.5">{t('Označit nesplněno', 'Mark missed')}</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-neutral-500 text-sm">{t('Zatím žádná výzva.', 'No challenge yet.')}</p>}
       </div>
     </div>
   )
@@ -887,15 +976,24 @@ function EquipmentTab({ clientId }) {
   const [gymEquipment, setGymEquipment] = useState([])
   const [catalog, setCatalog] = useState([])
   const [homeSelected, setHomeSelected] = useState([])
+  const [clientGym, setClientGym] = useState(null)
+  const [gymComments, setGymComments] = useState([])
 
   function load() {
     apiClient.get(`/clients/${clientId}`).then((r) => setClient(r.data))
     apiClient.get('/gyms').then((r) => setGyms(r.data))
     apiClient.get('/equipment-options').then((r) => setCatalog(r.data))
     apiClient.get(`/clients/${clientId}/equipment`).then((r) => setHomeSelected(r.data))
+    apiClient.get(`/clients/${clientId}/gym-link`).then((r) => setClientGym(r.data))
+    apiClient.get(`/clients/${clientId}/gym-link/comments`).then((r) => setGymComments(r.data))
   }
 
   useEffect(load, [clientId])
+
+  async function postGymComment(body) {
+    await apiClient.post(`/clients/${clientId}/gym-link/comments`, { body })
+    apiClient.get(`/clients/${clientId}/gym-link/comments`).then((r) => setGymComments(r.data))
+  }
 
   useEffect(() => {
     if (client?.gym_id) {
@@ -924,6 +1022,28 @@ function EquipmentTab({ clientId }) {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-3">{t('Klientova vlastní posilovna', "Client's own gym")}</h3>
+        {clientGym ? (
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+            <div className="font-medium">{clientGym.name}</div>
+            {clientGym.url && (
+              <a href={clientGym.url} target="_blank" rel="noreferrer" className="text-blood-500 hover:text-blood-400 text-sm break-all">
+                {clientGym.url}
+              </a>
+            )}
+            <CommentThread
+              comments={gymComments} onSubmit={postGymComment}
+              placeholder={t('Doporuč konkrétní stroj…', 'Recommend a specific machine…')}
+            />
+          </div>
+        ) : (
+          <p className="text-neutral-500 text-sm">
+            {t('Klient zatím nezadal odkaz na svoji posilovnu.', "Client hasn't submitted their own gym link yet.")}
+          </p>
+        )}
+      </div>
+
       <div>
         <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-3">{t('Kde klient cvičí', 'Where the client trains')}</h3>
         <select

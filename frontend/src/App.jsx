@@ -22,6 +22,9 @@ import History from './pages/client/History'
 import Messages from './pages/client/Messages'
 import Billing from './pages/client/Billing'
 import ClientContentLibrary from './pages/client/ContentLibrary'
+import MyGym from './pages/client/MyGym'
+import ExerciseLibrary from './pages/client/ExerciseLibrary'
+import AboutTrainer from './pages/client/AboutTrainer'
 import DiaryRegister from './pages/diary/DiaryRegister'
 import DiaryLogin from './pages/diary/DiaryLogin'
 import DiaryResetRequest from './pages/diary/DiaryResetRequest'
@@ -50,7 +53,10 @@ const clientLinks = [
   { to: '/client/history', label: 'Historie', labelEn: 'History' },
   { to: '/client/progress', label: 'Progres', labelEn: 'Progress' },
   { to: '/client/nutrition', label: 'Výživa', labelEn: 'Nutrition' },
+  { to: '/client/gym', label: 'Posilovna', labelEn: 'Gym' },
+  { to: '/client/exercises', label: 'Knihovna cviků', labelEn: 'Exercise library' },
   { to: '/client/library', label: 'Knihovna', labelEn: 'Library' },
+  { to: '/client/o-davidovi', label: 'O Davidovi', labelEn: 'About David' },
   { to: '/client/messages', label: 'Zprávy', labelEn: 'Messages' },
   { to: '/client/billing', label: 'Platby', labelEn: 'Billing' },
 ]
@@ -130,7 +136,10 @@ function App() {
         <Route path="history" element={<History />} />
         <Route path="progress" element={<Progress />} />
         <Route path="nutrition" element={<Nutrition />} />
+        <Route path="gym" element={<MyGym />} />
+        <Route path="exercises" element={<ExerciseLibrary />} />
         <Route path="library" element={<ClientContentLibrary />} />
+        <Route path="o-davidovi" element={<AboutTrainer />} />
         <Route path="messages" element={<Messages />} />
         <Route path="billing" element={<Billing />} />
       </Route>

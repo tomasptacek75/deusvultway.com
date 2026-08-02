@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Dumbbell, Plus, Trash2, Pencil, Video } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import { useLanguage } from '../../i18n/LanguageContext'
+import YouTubeEmbed from '../../components/YouTubeEmbed'
 
 const emptyForm = { name: '', muscle_group: '', category: '', cues: '', video_url: '' }
 
@@ -177,10 +178,16 @@ export default function Exercises() {
                   </div>
                 </div>
                 {ex.cues && <p className="text-sm text-neutral-400 mt-3">{t(ex.cues, ex.cues_en || ex.cues)}</p>}
-                <div className="mt-3 flex items-center gap-1.5 text-xs text-neutral-500">
-                  <Video size={14} />
-                  {ex.video_url ? t('Video přiloženo', 'Video attached') : t('Video bude brzy k dispozici', 'Video coming soon')}
-                </div>
+                {ex.video_url ? (
+                  <div className="mt-3">
+                    <YouTubeEmbed url={ex.video_url} label={t('Otevřít video', 'Open video')} />
+                  </div>
+                ) : (
+                  <div className="mt-3 flex items-center gap-1.5 text-xs text-neutral-500">
+                    <Video size={14} />
+                    {t('Video bude brzy k dispozici', 'Video coming soon')}
+                  </div>
+                )}
               </>
             )}
           </div>

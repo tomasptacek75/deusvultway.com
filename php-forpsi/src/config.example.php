@@ -7,7 +7,7 @@ declare(strict_types=1);
 return [
     'jwt_secret' => 'CHANGE_ME',
     'db_path'    => __DIR__ . '/../data/bloodandguts.db',
-    'org_name'   => 'BloodAndGuts',
+    'org_name'   => 'Deus Vult Way',
 
     // Hlasový tréninkový deník (muj.bloodandguts.cz) — Whisper transkripce + Anthropic
     // strukturování/návrh tréninku. Na produkci/testu se nepoužívají, ale klíč musí být

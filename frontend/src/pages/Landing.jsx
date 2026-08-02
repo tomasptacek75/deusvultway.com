@@ -53,7 +53,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 font-display text-xl tracking-widest">
             <Dumbbell className="text-blood-600" size={26} />
-            BLOOD<span className="text-blood-600">&amp;</span>GUTS
+            DEUS <span className="text-blood-600">VULT</span> WAY
           </div>
           <div className="flex items-center gap-3">
             <LanguageToggle />
@@ -117,7 +117,7 @@ export default function Landing() {
       <section className="max-w-5xl mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
         <img
           src="/david.jpg"
-          alt="David — trenér BloodAndGuts"
+          alt="David — trenér Deus Vult Way"
           className="rounded-xl border border-neutral-800 w-full max-w-sm mx-auto md:mx-0"
         />
         <div>
@@ -191,7 +191,7 @@ export default function Landing() {
       </section>
 
       <footer className="border-t border-neutral-800 py-8 text-center text-xs text-neutral-600">
-        © {new Date().getFullYear()} BloodAndGuts — David. {t('Web zatím ve vývoji (POC), neveřejné.', 'Site still in development (POC), not public yet.')}
+        © {new Date().getFullYear()} Deus Vult Way — David. {t('Web zatím ve vývoji (POC), neveřejné.', 'Site still in development (POC), not public yet.')}
       </footer>
     </div>
   )

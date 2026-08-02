@@ -41,11 +41,9 @@ const trainerLinks = [
   { to: '/trainer', label: 'Klienti', labelEn: 'Clients', end: true },
   { to: '/trainer/plans', label: 'Plány', labelEn: 'Plans' },
   { to: '/trainer/teams', label: 'Týmy', labelEn: 'Teams' },
-  { to: '/trainer/exercises', label: 'Cviky', labelEn: 'Exercises' },
-  // "Vybavení" schováno z menu 2026-08-02 na žádost uživatele — od zavedení klientem
-  // vlastního odkazu na gym (viz client/MyGym.jsx) není jasné, jestli David spravovaný
-  // katalog/domácí checklist vůbec používá. Routa `/trainer/equipment` zůstává funkční
-  // (jen bez odkazu v navigaci), ať jde snadno vrátit, kdyby ji chtěl zpátky.
+  // "Vybavení" a "Cviky" schované z menu 2026-08-02 na žádost uživatele — routy
+  // `/trainer/equipment` a `/trainer/exercises` zůstávají funkční (jen bez odkazu v
+  // navigaci), ať jde snadno vrátit zpět, kdyby je David chtěl.
   { to: '/trainer/content', label: 'Knihovna', labelEn: 'Library' },
   { to: '/trainer/inquiries', label: 'Poptávky', labelEn: 'Inquiries' },
 ]
@@ -57,7 +55,8 @@ const clientLinks = [
   { to: '/client/progress', label: 'Progres', labelEn: 'Progress' },
   { to: '/client/nutrition', label: 'Výživa', labelEn: 'Nutrition' },
   { to: '/client/gym', label: 'Posilovna', labelEn: 'Gym' },
-  { to: '/client/exercises', label: 'Knihovna cviků', labelEn: 'Exercise library' },
+  // "Knihovna cviků" schovaná z menu 2026-08-02 na žádost uživatele — routa
+  // `/client/exercises` zůstává funkční, jen bez odkazu v navigaci.
   { to: '/client/library', label: 'Knihovna', labelEn: 'Library' },
   { to: '/client/o-davidovi', label: 'O Davidovi', labelEn: 'About David' },
   { to: '/client/messages', label: 'Zprávy', labelEn: 'Messages' },

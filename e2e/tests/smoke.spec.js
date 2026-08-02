@@ -51,12 +51,14 @@ test.describe('Smoke', () => {
     await page.waitForURL('**/login')
   })
 
-  test('nová navigace pro vybavení a knihovnu je vidět (portálové rozšíření)', async ({ page, request }) => {
+  test('nová navigace pro knihovnu je vidět (portálové rozšíření)', async ({ page, request }) => {
     const trainer = await getTrainer(request)
     await page.goto('/login')
     await page.getByRole('button', { name: trainer.display_name, exact: true }).click()
     await page.waitForURL('**/trainer/calendar')
-    await expect(page.getByRole('link', { name: /^(Vybavení|Equipment)$/ })).toBeVisible()
+    // "Vybavení" je od 2026-08-02 schované z menu (routa /trainer/equipment funguje dál),
+    // viz App.jsx — nebylo jasné, jestli ho David reálně používá vedle nového klientova
+    // vlastního odkazu na gym.
     await expect(page.getByRole('link', { name: /^(Knihovna|Library)$/ })).toBeVisible()
 
     const client = await getClient(request)

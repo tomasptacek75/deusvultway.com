@@ -75,13 +75,14 @@ test.describe('Trenér — detail klienta', () => {
     await expect(planCard).toContainText('2500 kcal')
   })
 
-  test('záložka 1RM: zaznamenání nové hodnoty', async ({ page, request }) => {
+  test('záložka 6RM/10RM: zaznamenání nové hodnoty', async ({ page, request }) => {
     await loginViaStorage(page, request, trainer.id)
     await page.goto(`/trainer/clients/${client.id}?tab=one-rm`)
 
+    // Formulář má dva selecty (cvik, opakování 6/10) — cvik je první v DOM pořadí.
     await page.locator('select').first().selectOption(String(exerciseId))
-    await page.getByLabel(/1RM \(kg\)/).fill('87.5')
-    await page.getByRole('button', { name: /Zaznamenat 1RM|Record 1RM/ }).click()
+    await page.getByLabel(/Váha \(kg\)/).fill('87.5')
+    await page.getByRole('button', { name: /^Zaznamenat$|^Record$/ }).click()
 
     await expect(page.getByText(/Nejnovější|Latest/)).toContainText('87.5')
   })

@@ -7,7 +7,7 @@ import NotificationBell from './NotificationBell'
 import LanguageToggle from './LanguageToggle'
 
 const navClass = ({ isActive }) =>
-  `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+  `px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
     isActive ? 'bg-blood-700 text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'
   }`
 

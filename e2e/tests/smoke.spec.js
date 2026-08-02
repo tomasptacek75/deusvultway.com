@@ -66,6 +66,8 @@ test.describe('Smoke', () => {
     await page.waitForURL('**/login')
     await page.getByRole('button', { name: client.display_name, exact: true }).click()
     await page.waitForURL('**/client')
-    await expect(page.getByRole('link', { name: /^(Knihovna|Library)$/ })).toBeVisible()
+    // Klientská "Knihovna" je od 2026-08-02 schovaná z menu (routa /client/library funguje
+    // dál) — "O Davidovi" zůstal jediný odkaz na content_sections v klientské navigaci.
+    await expect(page.getByRole('link', { name: /^(O Davidovi|About David)$/ })).toBeVisible()
   })
 })

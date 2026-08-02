@@ -51,13 +51,13 @@ const trainerLinks = [
 const clientLinks = [
   { to: '/client', label: 'Přehled', labelEn: 'Overview', end: true },
   { to: '/client/calendar', label: 'Kalendář', labelEn: 'Calendar' },
-  { to: '/client/history', label: 'Historie', labelEn: 'History' },
   { to: '/client/progress', label: 'Progres', labelEn: 'Progress' },
   { to: '/client/nutrition', label: 'Výživa', labelEn: 'Nutrition' },
   { to: '/client/gym', label: 'Posilovna', labelEn: 'Gym' },
-  // "Knihovna cviků" schovaná z menu 2026-08-02 na žádost uživatele — routa
-  // `/client/exercises` zůstává funkční, jen bez odkazu v navigaci.
-  { to: '/client/library', label: 'Knihovna', labelEn: 'Library' },
+  // "Historie", "Knihovna cviků" a "Knihovna" schované z menu 2026-08-02 na žádost
+  // uživatele — routy `/client/history`, `/client/exercises` a `/client/library` zůstávají
+  // funkční, jen bez odkazu v navigaci. Osobní rekordy z Historie se teď zobrazují na
+  // Progresu (viz Progress.jsx), zbytek Historie (dokončené tréninky) zůstal na své routě.
   { to: '/client/o-davidovi', label: 'O Davidovi', labelEn: 'About David' },
   { to: '/client/messages', label: 'Zprávy', labelEn: 'Messages' },
   { to: '/client/billing', label: 'Platby', labelEn: 'Billing' },

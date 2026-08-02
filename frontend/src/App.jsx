@@ -42,7 +42,10 @@ const trainerLinks = [
   { to: '/trainer/plans', label: 'Plány', labelEn: 'Plans' },
   { to: '/trainer/teams', label: 'Týmy', labelEn: 'Teams' },
   { to: '/trainer/exercises', label: 'Cviky', labelEn: 'Exercises' },
-  { to: '/trainer/equipment', label: 'Vybavení', labelEn: 'Equipment' },
+  // "Vybavení" schováno z menu 2026-08-02 na žádost uživatele — od zavedení klientem
+  // vlastního odkazu na gym (viz client/MyGym.jsx) není jasné, jestli David spravovaný
+  // katalog/domácí checklist vůbec používá. Routa `/trainer/equipment` zůstává funkční
+  // (jen bez odkazu v navigaci), ať jde snadno vrátit, kdyby ji chtěl zpátky.
   { to: '/trainer/content', label: 'Knihovna', labelEn: 'Library' },
   { to: '/trainer/inquiries', label: 'Poptávky', labelEn: 'Inquiries' },
 ]

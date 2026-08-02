@@ -175,8 +175,17 @@ a plan-mode design session that found most of what the spec asked for was alread
 - **Every new hide-able entity follows the existing `users.active` precedent exactly**: an
   `active INTEGER DEFAULT 1` column, a `PUT` toggle endpoint, and client-facing reads filtered to
   `active=1` while trainer management screens show everything (with `?include_inactive=1`). No
-  `DELETE` endpoint exists for `equipment_options`, `content_sections`, or `content_items` —
-  hiding, never deleting, is a hard requirement from the spec, not a nice-to-have.
+  `DELETE` endpoint exists for `equipment_options` — hiding, never deleting, is still the rule
+  there. **`content_sections`/`content_items` are the exception**: hide-not-delete was the
+  original design, but the trainer's own management screen intentionally shows hidden rows too
+  (so they can be un-hidden later), which meant disposable content (in practice, accumulated e2e
+  test debris on test.bloodandguts.cz — see `e2e/README.md`) could be hidden from clients but
+  never actually cleared from the trainer's own Knihovna page. User explicitly asked to drop the
+  no-delete rule for this pair (2026-08-02): `DELETE /content-sections/{id}` (cascades to its
+  items via `content_items.section_id ON DELETE CASCADE`) and `DELETE /content-items/{id}` both
+  exist now, alongside the hide toggle — `trainer/ContentLibrary.jsx` has both a hide (eye) and a
+  delete (trash) button per section/item. Real trainer content and test debris both go through
+  the same two buttons; hide for "might want this back," delete for "gone for good."
 - **What needed zero changes**: plan assignment/generation (`training_plans`/`plan_blocks`/
   `generate-workouts` already fully supported a single individual client, not just teams —
   `planTargetClientIds()` checks `client_id` before falling back to `team_id`), progress tracking,

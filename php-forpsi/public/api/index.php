@@ -441,6 +441,19 @@ if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'content-sections') {
     jsonResponse(fetchOne($pdo, "SELECT * FROM content_sections WHERE id=?", [$id]));
 }
 
+// Skutečné mazání (ne jen active=0) — na žádost uživatele 2026-08-02, po zjištění, že
+// testovací "E2E Sekce ..." data se z trenérova pohledu nedala nikdy zbavit (hide-not-delete
+// tu jen skrývalo klientům, trenér vidí i skryté). content_items.section_id má ON DELETE
+// CASCADE, takže smazání sekce smaže i její položky.
+if ($method === 'DELETE' && count($seg) === 2 && $seg[0] === 'content-sections') {
+    $auth = requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $existing = fetchOne($pdo, "SELECT id FROM content_sections WHERE id=? AND trainer_id=?", [$id, $auth['user_id']]);
+    if (!$existing) jsonResponse(['detail' => 'Sekce nenalezena'], 404);
+    $pdo->prepare("DELETE FROM content_sections WHERE id=?")->execute([$id]);
+    jsonResponse(['ok' => true]);
+}
+
 if ($method === 'POST' && count($seg) === 3 && $seg[0] === 'content-sections' && $seg[2] === 'items') {
     $auth = requireRole($config, 'trainer');
     $sectionId = (int)$seg[1];
@@ -471,6 +484,18 @@ if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'content-items') {
         $b['order_num'] ?? $existing['order_num'], isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM content_items WHERE id=?", [$id]));
+}
+
+if ($method === 'DELETE' && count($seg) === 2 && $seg[0] === 'content-items') {
+    $auth = requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $existing = fetchOne($pdo, "
+        SELECT ci.id FROM content_items ci JOIN content_sections cs ON cs.id = ci.section_id
+        WHERE ci.id=? AND cs.trainer_id=?
+    ", [$id, $auth['user_id']]);
+    if (!$existing) jsonResponse(['detail' => 'Položka nenalezena'], 404);
+    $pdo->prepare("DELETE FROM content_items WHERE id=?")->execute([$id]);
+    jsonResponse(['ok' => true]);
 }
 
 // ── CVIKY (knihovna trenéra) ────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BookOpen, Plus, ChevronDown, ChevronUp, Pencil, Eye, EyeOff } from 'lucide-react'
+import { BookOpen, Plus, ChevronDown, ChevronUp, Pencil, Eye, EyeOff, Trash2 } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import { useLanguage } from '../../i18n/LanguageContext'
 
@@ -31,6 +31,12 @@ export default function ContentLibrary() {
 
   async function toggleSectionActive(section) {
     await apiClient.put(`/content-sections/${section.id}`, { active: section.active ? 0 : 1 })
+    load()
+  }
+
+  async function deleteSection(section) {
+    if (!window.confirm(t(`Trvale smazat sekci "${section.title}" a všechny její položky?`, `Permanently delete section "${section.title}" and all its items?`))) return
+    await apiClient.delete(`/content-sections/${section.id}`)
     load()
   }
 
@@ -91,6 +97,9 @@ export default function ContentLibrary() {
               <button onClick={() => toggleSectionActive(s)} className="text-neutral-600 hover:text-blood-500 shrink-0" title={s.active ? t('Skrýt sekci', 'Hide section') : t('Odkrýt sekci', 'Show section')}>
                 {s.active ? <Eye size={16} /> : <EyeOff size={16} />}
               </button>
+              <button onClick={() => deleteSection(s)} className="text-neutral-600 hover:text-blood-500 shrink-0 ml-1" title={t('Smazat sekci', 'Delete section')}>
+                <Trash2 size={16} />
+              </button>
             </div>
             {expanded === s.id && <SectionEditor section={s} onChange={load} />}
           </div>
@@ -131,6 +140,12 @@ function SectionEditor({ section, onChange }) {
 
   async function toggleItemActive(item) {
     await apiClient.put(`/content-items/${item.id}`, { active: item.active ? 0 : 1 })
+    onChange()
+  }
+
+  async function deleteItem(item) {
+    if (!window.confirm(t(`Trvale smazat položku "${item.title}"?`, `Permanently delete item "${item.title}"?`))) return
+    await apiClient.delete(`/content-items/${item.id}`)
     onChange()
   }
 
@@ -193,6 +208,9 @@ function SectionEditor({ section, onChange }) {
                 </button>
                 <button onClick={() => toggleItemActive(item)} className="text-neutral-600 hover:text-blood-500" title={item.active ? t('Skrýt', 'Hide') : t('Odkrýt', 'Show')}>
                   {item.active ? <Eye size={15} /> : <EyeOff size={15} />}
+                </button>
+                <button onClick={() => deleteItem(item)} className="text-neutral-600 hover:text-blood-500" title={t('Smazat', 'Delete')}>
+                  <Trash2 size={15} />
                 </button>
               </div>
             </div>

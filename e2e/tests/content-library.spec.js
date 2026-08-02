@@ -63,11 +63,15 @@ test.describe('Knihovna obsahu — viditelnost pro všechny klienty, hide i trva
     await page.goto('/client/library')
     await expect(page.getByText(itemTitle)).toHaveCount(0)
 
-    // content_items/content_sections nemají DELETE endpoint (hide-only) — zůstávají v datech.
+    // Skrytí samo o sobě položku z dat neodstraní.
     const afterHide = await (await request.get('/api/content-sections', { headers, params: { include_inactive: 1 } })).json()
     const stillExists = afterHide.find((s) => s.title === sectionTitle)?.items.find((i) => i.title === itemTitle)
     expect(stillExists, 'skrytá položka musí v datech dál existovat').toBeTruthy()
     expect(stillExists.active).toBe(0)
+
+    // Úklid — smysl testu byl ověřit hide, ne nechat po sobě smetí na test.bloodandguts.cz.
+    const sectionAfterHide = afterHide.find((s) => s.title === sectionTitle)
+    await request.delete(`/api/content-sections/${sectionAfterHide.id}`, { headers })
   })
 
   test('trvalé smazání sekce (koš) odstraní sekci i její položky z dat, ne jen skryje', async ({ page, request }) => {

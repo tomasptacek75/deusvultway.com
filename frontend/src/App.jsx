@@ -44,14 +44,17 @@ const trainerLinks = [
   // na žádost uživatele 2026-08-03.
   { to: '/trainer', label: 'Přehled', labelEn: 'Overview', end: true },
   { to: '/trainer/clients', label: 'Klienti', labelEn: 'Clients', end: true },
-  { to: '/trainer/calendar', label: 'Kalendář', labelEn: 'Calendar' },
   { to: '/trainer/plans', label: 'Plány', labelEn: 'Plans' },
   { to: '/trainer/exercises', label: 'Cviky', labelEn: 'Exercises' },
-  // "Vybavení" a "Týmy" schované z menu (2026-08-02 a 2026-08-03) na žádost uživatele —
-  // routy `/trainer/equipment` a `/trainer/teams` zůstávají funkční (jen bez odkazu v
-  // navigaci). "Cviky" bylo krátce schované taky, ale vráceno zpět — je to jediné místo,
-  // kde David nahrává/edituje videa cviků k Davidovu vlastnímu bodu 2 z feedbacku (viz
-  // project_bloodandguts_david_feedback_implementation memory).
+  // "Služby" = Tiers.jsx (cenové tiery + jednotlivé služby v nich) — dřív dosažitelné jen
+  // odkazem z Klientů/Billing tabu, teď má vlastní položku v menu na žádost uživatele
+  // 2026-08-03; odkaz "Spravovat tiery" na /trainer/clients proto odstraněn (redundantní).
+  { to: '/trainer/tiers', label: 'Služby', labelEn: 'Services' },
+  // "Kalendář" schovaný z menu (2026-08-03, prozatímně) — routa `/trainer/calendar`
+  // zůstává funkční. "Vybavení" a "Týmy" schované dřív (2026-08-02 a 2026-08-03) ze
+  // stejného důvodu. "Cviky" bylo krátce schované taky, ale vráceno zpět — je to jediné
+  // místo, kde David nahrává/edituje videa cviků k Davidovu vlastnímu bodu 2 z feedbacku
+  // (viz project_bloodandguts_david_feedback_implementation memory).
   // Nav label "O mně" (na žádost uživatele 2026-08-03) — stránka (ContentLibrary.jsx) dál
   // spravuje obojí, "O mně" i generickou "library" knihovnu (viz kind sloupec/odznáček na
   // sekcích), jen v menu se to teď volá podle toho, co David reálně používá nejvíc.

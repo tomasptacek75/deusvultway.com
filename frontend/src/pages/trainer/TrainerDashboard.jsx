@@ -196,7 +196,6 @@ export default function TrainerDashboard() {
                 <option value="">{t('Všechny služby', 'All services')}</option>
                 {services.map((s) => <option key={s.id} value={s.id}>{t(s.name, s.name_en || s.name)}</option>)}
               </select>
-              <Link to="/trainer/tiers" className="text-xs text-blood-500 hover:underline whitespace-nowrap">{t('Spravovat tiery', 'Manage tiers')}</Link>
             </>
           )}
           <div className="relative w-full sm:w-64">

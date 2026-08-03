@@ -1872,6 +1872,7 @@ function groupDiarySetsByExercise(array $sets): array
             'weight_kg' => $s['weight_kg'] !== null ? (float)$s['weight_kg'] : null,
             'duration_min' => $s['duration_min'] !== null ? (float)$s['duration_min'] : null,
             'distance_km' => $s['distance_km'] !== null ? (float)$s['distance_km'] : null,
+            'own_weight' => !empty($s['own_weight']),
         ];
     }
     ksort($byExercise);
@@ -1923,6 +1924,7 @@ function replaceDiarySets(PDO $pdo, int $entryId, array $exercises): void
                 'weight_kg' => isset($set['weight_kg']) ? (float)$set['weight_kg'] : null,
                 'duration_min' => isset($set['duration_min']) ? (float)$set['duration_min'] : null,
                 'distance_km' => isset($set['distance_km']) ? (float)$set['distance_km'] : null,
+                'own_weight' => !empty($set['own_weight']) ? 1 : 0,
             ]);
         }
         $order++;

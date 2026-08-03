@@ -16,19 +16,34 @@ export default function DiaryEntryEditor({ exercises, onChange }) {
       ...ex, sets: ex.sets.map((s, j) => (j === setIdx ? { ...s, [field]: value === '' ? null : Number(value) } : s)),
     }))
   }
+  function toggleOwnWeight(exIdx, setIdx) {
+    onChange(exercises.map((ex, i) => i !== exIdx ? ex : {
+      ...ex, sets: ex.sets.map((s, j) => (j === setIdx ? { ...s, own_weight: !s.own_weight, weight_kg: s.own_weight ? s.weight_kg : null } : s)),
+    }))
+  }
   function removeSet(exIdx, setIdx) {
     onChange(exercises.map((ex, i) => i !== exIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== setIdx) }))
   }
+  // Nová série se předvyplní podle té předchozí (stejný cvik) — obvykle se opakování/váha
+  // mezi sériemi mění málo nebo vůbec, jde jen upravit, ne muset zadávat znovu od nuly.
   function addSet(exIdx) {
-    onChange(exercises.map((ex, i) => i !== exIdx ? ex : {
-      ...ex, sets: [...ex.sets, { set_number: ex.sets.length + 1, reps: null, weight_kg: null, duration_min: null, distance_km: null }],
+    onChange(exercises.map((ex, i) => {
+      if (i !== exIdx) return ex
+      const prev = ex.sets[ex.sets.length - 1]
+      return {
+        ...ex, sets: [...ex.sets, {
+          set_number: ex.sets.length + 1,
+          reps: prev?.reps ?? null, weight_kg: prev?.weight_kg ?? null, own_weight: prev?.own_weight ?? false,
+          duration_min: prev?.duration_min ?? null, distance_km: prev?.distance_km ?? null,
+        }],
+      }
     }))
   }
   function removeExercise(exIdx) {
     onChange(exercises.filter((_, i) => i !== exIdx))
   }
   function addExercise(type) {
-    onChange([...exercises, { name: '', type, sets: [{ set_number: 1, reps: null, weight_kg: null, duration_min: null, distance_km: null }] }])
+    onChange([...exercises, { name: '', type, sets: [{ set_number: 1, reps: null, weight_kg: null, own_weight: false, duration_min: null, distance_km: null }] }])
   }
 
   return (
@@ -66,7 +81,7 @@ export default function DiaryEntryEditor({ exercises, onChange }) {
             </div>
             <div className="space-y-1.5">
               {ex.sets.map((s, setIdx) => (
-                <div key={setIdx} className="flex items-center gap-2 text-sm">
+                <div key={setIdx} className="flex items-center gap-2 gap-y-1.5 text-sm flex-wrap">
                   <span className="text-neutral-500 w-6">#{setIdx + 1}</span>
                   {isCardio ? (
                     <>
@@ -88,11 +103,19 @@ export default function DiaryEntryEditor({ exercises, onChange }) {
                         placeholder="opak." className="w-14 px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800"
                       />
                       <span className="text-neutral-600">×</span>
-                      <input
-                        type="number" step="0.5" value={s.weight_kg ?? ''} onChange={(ev) => updateSet(exIdx, setIdx, 'weight_kg', ev.target.value)}
-                        placeholder="kg" className="w-16 px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800"
-                      />
-                      <span className="text-neutral-600">kg</span>
+                      {!s.own_weight && (
+                        <>
+                          <input
+                            type="number" step="0.5" value={s.weight_kg ?? ''} onChange={(ev) => updateSet(exIdx, setIdx, 'weight_kg', ev.target.value)}
+                            placeholder="kg" className="w-16 px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800"
+                          />
+                          <span className="text-neutral-600">kg</span>
+                        </>
+                      )}
+                      <label className="flex items-center gap-1 text-xs text-neutral-500 whitespace-nowrap cursor-pointer">
+                        <input type="checkbox" checked={!!s.own_weight} onChange={() => toggleOwnWeight(exIdx, setIdx)} />
+                        vlastní váha
+                      </label>
                     </>
                   )}
                   <button onClick={() => removeSet(exIdx, setIdx)} className="text-neutral-600 hover:text-blood-400 ml-auto p-1">

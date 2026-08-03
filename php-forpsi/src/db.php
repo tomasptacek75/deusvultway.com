@@ -699,6 +699,15 @@ function initSchema(PDO $pdo, array $config): void
 
     $pdo->exec('PRAGMA user_version = 10');
     }
+
+    if ($schemaVersion < 11) {
+    // Vlastní váha (bodyweight cviky — shyby, kliky...) na muj.bloodandguts.cz deníku —
+    // dřív šlo weight_kg jen nechat prázdné, což se ale zobrazovalo jako "?kg" (vypadalo
+    // jako chybějící údaj, ne jako záměrná bodyweight série).
+    try { $pdo->exec("ALTER TABLE diary_sets ADD COLUMN own_weight INTEGER NOT NULL DEFAULT 0"); } catch (\Exception) {}
+
+    $pdo->exec('PRAGMA user_version = 11');
+    }
 }
 
 function fetchOne(PDO $pdo, string $sql, array $params = []): ?array

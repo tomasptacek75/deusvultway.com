@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock, NotebookPen } from 'lucide-react'
+import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock, NotebookPen, Layers } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
 import DiaryBackLink from '../../components/DiaryBackLink'
-import { formatDiarySet } from '../../utils/diary'
+import { formatDiarySet, groupDiaryEntriesIntoBlocks } from '../../utils/diary'
+
+function blockTimeRange(block) {
+  const times = block.entries.flatMap((e) => [e.start_time, e.end_time].filter(Boolean))
+  if (times.length === 0) return null
+  return `${times[0]}–${times[times.length - 1]}`
+}
 
 export default function DiaryHistory() {
   const [entries, setEntries] = useState(null)
@@ -43,6 +49,106 @@ export default function DiaryHistory() {
     setEntries((all) => all.filter((e) => e.id !== id))
   }
 
+  // Víc krátkých namluvení jednoho tréninku (rozcvička/hlavní část/kardio zvlášť) do 120
+  // minut od sebe se zobrazí jako jeden blok — čistě vizuální seskupení, žádná data se
+  // neslučují, každý záznam v bloku zůstává samostatně editovatelný/smazatelný.
+  const blocks = useMemo(() => groupDiaryEntriesIntoBlocks(entries ?? []), [entries])
+
+  function renderEntry(e) {
+    return (
+      <div key={e.id} id={`diary-entry-${e.id}`} className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden scroll-mt-4">
+        <button
+          onClick={() => setExpanded(expanded === e.id ? null : e.id)}
+          className="w-full flex items-center justify-between p-4 text-left"
+        >
+          <div>
+            <div className="text-xs text-neutral-500 flex items-center gap-2">
+              <span>{e.recorded_at}</span>
+              {e.start_time && (
+                <span className="flex items-center gap-0.5">
+                  <Clock size={11} /> {e.start_time}{e.end_time ? `–${e.end_time}` : ''}
+                </span>
+              )}
+            </div>
+            <div className="font-medium mt-0.5">{e.exercises.map((ex) => ex.name).join(', ') || 'Bez cviků'}</div>
+          </div>
+          {expanded === e.id ? <ChevronUp size={18} className="text-neutral-500" /> : <ChevronDown size={18} className="text-neutral-500" />}
+        </button>
+        {expanded === e.id && (
+          <div className="border-t border-neutral-800 p-4 space-y-3">
+            {editing === e.id ? (
+              <>
+                <label className="flex items-center gap-2 text-sm text-neutral-400">
+                  <Calendar size={14} />
+                  <span>Datum:</span>
+                  <input
+                    type="date" value={e.recorded_at || ''}
+                    onChange={(ev) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, recorded_at: ev.target.value } : x)))}
+                    className="px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200"
+                  />
+                </label>
+                <div className="flex items-center gap-2 gap-y-1.5 text-sm text-neutral-400 flex-wrap">
+                  <Clock size={14} />
+                  <span>Čas:</span>
+                  <TimeSelect
+                    value={e.start_time}
+                    onChange={(v) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, start_time: v } : x)))}
+                    className="w-11 px-0 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm text-center appearance-none"
+                  />
+                  <span className="text-neutral-600">–</span>
+                  <TimeSelect
+                    value={e.end_time}
+                    onChange={(v) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, end_time: v } : x)))}
+                    className="w-11 px-0 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm text-center appearance-none"
+                  />
+                </div>
+                <DiaryEntryEditor
+                  exercises={e.exercises}
+                  onChange={(exercises) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, exercises } : x)))}
+                />
+                <label className="block text-sm text-neutral-400">
+                  <span className="flex items-center gap-2 mb-1"><NotebookPen size={14} /> Poznámka</span>
+                  <textarea
+                    rows={3} value={e.notes || ''}
+                    onChange={(ev) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, notes: ev.target.value } : x)))}
+                    placeholder="Únava před/po, jak se cvičilo, spánek, strava — cokoli, co mohlo ovlivnit trénink"
+                    className="w-full px-3 py-2 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 resize-y"
+                  />
+                </label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => saveEdits(e)} className="px-3 py-2 rounded-md bg-blood-700 hover:bg-blood-600 text-sm font-medium flex items-center gap-1.5">
+                    <Check size={14} /> Uložit
+                  </button>
+                  <button onClick={() => { setEditing(null); load() }} className="text-sm text-neutral-400 hover:text-neutral-200">Zrušit</button>
+                </div>
+              </>
+            ) : (
+              <>
+                {e.notes && <div className="text-sm text-neutral-400 italic">{e.notes}</div>}
+                {e.exercises.map((ex, i) => (
+                  <div key={i} className="text-sm">
+                    <span className="font-medium">{ex.name}</span>
+                    <div className="text-xs text-neutral-400 mt-0.5">
+                      {ex.sets.map((s) => formatDiarySet(s, ex.type)).join(', ') || 'Bez sérií'}
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-center gap-3 pt-1">
+                  <button onClick={() => setEditing(e.id)} className="text-sm text-blood-500 hover:text-blood-400 flex items-center gap-1">
+                    <Pencil size={14} /> Upravit
+                  </button>
+                  <button onClick={() => removeEntry(e.id)} className="text-sm text-neutral-500 hover:text-blood-400 flex items-center gap-1">
+                    <Trash2 size={14} /> Smazat
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div>
       <DiaryBackLink />
@@ -50,99 +156,15 @@ export default function DiaryHistory() {
         <HistoryIcon className="text-blood-600" /> Historie tréninků
       </h1>
 
-      <div className="space-y-2">
-        {entries?.map((e) => (
-          <div key={e.id} id={`diary-entry-${e.id}`} className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-hidden scroll-mt-4">
-            <button
-              onClick={() => setExpanded(expanded === e.id ? null : e.id)}
-              className="w-full flex items-center justify-between p-4 text-left"
-            >
-              <div>
-                <div className="text-xs text-neutral-500 flex items-center gap-2">
-                  <span>{e.recorded_at}</span>
-                  {e.start_time && (
-                    <span className="flex items-center gap-0.5">
-                      <Clock size={11} /> {e.start_time}{e.end_time ? `–${e.end_time}` : ''}
-                    </span>
-                  )}
-                </div>
-                <div className="font-medium mt-0.5">{e.exercises.map((ex) => ex.name).join(', ') || 'Bez cviků'}</div>
-              </div>
-              {expanded === e.id ? <ChevronUp size={18} className="text-neutral-500" /> : <ChevronDown size={18} className="text-neutral-500" />}
-            </button>
-            {expanded === e.id && (
-              <div className="border-t border-neutral-800 p-4 space-y-3">
-                {editing === e.id ? (
-                  <>
-                    <label className="flex items-center gap-2 text-sm text-neutral-400">
-                      <Calendar size={14} />
-                      <span>Datum:</span>
-                      <input
-                        type="date" value={e.recorded_at || ''}
-                        onChange={(ev) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, recorded_at: ev.target.value } : x)))}
-                        className="px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200"
-                      />
-                    </label>
-                    <div className="flex items-center gap-2 gap-y-1.5 text-sm text-neutral-400 flex-wrap">
-                      <Clock size={14} />
-                      <span>Čas:</span>
-                      <TimeSelect
-                        value={e.start_time}
-                        onChange={(v) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, start_time: v } : x)))}
-                        className="w-11 px-0 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm text-center appearance-none"
-                      />
-                      <span className="text-neutral-600">–</span>
-                      <TimeSelect
-                        value={e.end_time}
-                        onChange={(v) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, end_time: v } : x)))}
-                        className="w-11 px-0 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 text-sm text-center appearance-none"
-                      />
-                    </div>
-                    <DiaryEntryEditor
-                      exercises={e.exercises}
-                      onChange={(exercises) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, exercises } : x)))}
-                    />
-                    <label className="block text-sm text-neutral-400">
-                      <span className="flex items-center gap-2 mb-1"><NotebookPen size={14} /> Poznámka</span>
-                      <textarea
-                        rows={3} value={e.notes || ''}
-                        onChange={(ev) => setEntries((all) => all.map((x) => (x.id === e.id ? { ...x, notes: ev.target.value } : x)))}
-                        placeholder="Únava před/po, jak se cvičilo, spánek, strava — cokoli, co mohlo ovlivnit trénink"
-                        className="w-full px-3 py-2 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200 resize-y"
-                      />
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => saveEdits(e)} className="px-3 py-2 rounded-md bg-blood-700 hover:bg-blood-600 text-sm font-medium flex items-center gap-1.5">
-                        <Check size={14} /> Uložit
-                      </button>
-                      <button onClick={() => { setEditing(null); load() }} className="text-sm text-neutral-400 hover:text-neutral-200">Zrušit</button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {e.notes && <div className="text-sm text-neutral-400 italic">{e.notes}</div>}
-                    {e.exercises.map((ex, i) => (
-                      <div key={i} className="text-sm">
-                        <span className="font-medium">{ex.name}</span>
-                        <div className="text-xs text-neutral-400 mt-0.5">
-                          {ex.sets.map((s) => formatDiarySet(s, ex.type)).join(', ') || 'Bez sérií'}
-                        </div>
-                      </div>
-                    ))}
-                    <div className="flex items-center gap-3 pt-1">
-                      <button onClick={() => setEditing(e.id)} className="text-sm text-blood-500 hover:text-blood-400 flex items-center gap-1">
-                        <Pencil size={14} /> Upravit
-                      </button>
-                      <button onClick={() => removeEntry(e.id)} className="text-sm text-neutral-500 hover:text-blood-400 flex items-center gap-1">
-                        <Trash2 size={14} /> Smazat
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+      <div className="space-y-3">
+        {blocks.map((block, bi) => block.entries.length > 1 ? (
+          <div key={bi} className="rounded-lg border border-blood-900/40 bg-blood-950/10 p-2 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs text-blood-500 uppercase tracking-wide px-2 pt-1">
+              <Layers size={12} /> Blok cvičení · {block.entries.length} záznamy{blockTimeRange(block) ? ` · ${blockTimeRange(block)}` : ''}
+            </div>
+            <div className="space-y-2">{block.entries.map(renderEntry)}</div>
           </div>
-        ))}
+        ) : renderEntry(block.entries[0]))}
         {entries?.length === 0 && <p className="text-neutral-500 text-sm">Zatím žádné záznamy.</p>}
         {entries === null && <p className="text-neutral-500 text-sm">Načítám…</p>}
       </div>

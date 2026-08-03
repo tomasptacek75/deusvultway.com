@@ -37,8 +37,10 @@ import DiaryNextWorkout from './pages/diary/DiaryNextWorkout'
 import DiaryGoal from './pages/diary/DiaryGoal'
 
 const trainerLinks = [
-  { to: '/trainer/calendar', label: 'Kalendář', labelEn: 'Calendar' },
+  // Klienti musí být první — David chce po přihlášení rovnou přehled portálových klientů
+  // (viz homePath() v api/client.js a výchozí filtr v TrainerDashboard.jsx).
   { to: '/trainer', label: 'Klienti', labelEn: 'Clients', end: true },
+  { to: '/trainer/calendar', label: 'Kalendář', labelEn: 'Calendar' },
   { to: '/trainer/plans', label: 'Plány', labelEn: 'Plans' },
   { to: '/trainer/teams', label: 'Týmy', labelEn: 'Teams' },
   { to: '/trainer/exercises', label: 'Cviky', labelEn: 'Exercises' },

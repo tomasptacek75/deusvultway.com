@@ -67,7 +67,9 @@ export function getUser() {
 
 export function homePath() {
   const u = getUser()
-  if (u?.role === 'trainer') return '/trainer/calendar'
+  // Landing pro trenéra je Klienti (index route /trainer), ne Kalendář — David chce po
+  // přihlášení rovnou vidět portálové klienty (viz TrainerDashboard.jsx výchozí filtr).
+  if (u?.role === 'trainer') return '/trainer'
   if (u?.role === 'diary') return '/diary'
   return '/client'
 }

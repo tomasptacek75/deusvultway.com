@@ -149,7 +149,13 @@ function clientSummary(PDO $pdo, int $clientId): array
 
 if ($method === 'GET' && $path === '/clients') {
     requireRole($config, 'trainer');
-    $sql = "SELECT id, email, phone, display_name, client_type, gym_id, created_at, (avatar_path IS NOT NULL) AS has_avatar FROM users WHERE role='client' AND active=1";
+    // current_price_kc/current_tier = nejnovější předplatné klienta — pro řazení Portál
+    // klientů podle tieru od nejdražšího po nejlevnější na TrainerDashboard.jsx (žádné
+    // pořadí tierů natvrdo v kódu, tier je volný text, price_kc je spolehlivější).
+    $sql = "SELECT id, email, phone, display_name, client_type, gym_id, created_at, (avatar_path IS NOT NULL) AS has_avatar,
+        (SELECT price_kc FROM subscriptions WHERE client_id = users.id ORDER BY created_at DESC LIMIT 1) AS current_price_kc,
+        (SELECT tier FROM subscriptions WHERE client_id = users.id ORDER BY created_at DESC LIMIT 1) AS current_tier
+        FROM users WHERE role='client' AND active=1";
     $params = [];
     if (!empty($_GET['client_type'])) { $sql .= " AND client_type=?"; $params[] = $_GET['client_type']; }
     $sql .= " ORDER BY display_name";

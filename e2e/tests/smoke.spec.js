@@ -15,7 +15,9 @@ test.describe('Smoke', () => {
     await page.goto('/login')
     await expect(page.getByText(/POC režim|POC mode/i)).toBeVisible()
     await page.getByRole('button', { name: trainer.display_name, exact: true }).click()
-    await page.waitForURL('**/trainer/calendar')
+    // Landing pro trenéra je od 2026-08-03 Klienti (index /trainer), ne Kalendář — viz
+    // homePath() v api/client.js.
+    await page.waitForURL('**/trainer')
     await expect(page.getByText(trainer.display_name)).toBeVisible()
   })
 
@@ -31,7 +33,7 @@ test.describe('Smoke', () => {
     const trainer = await getTrainer(request)
     await page.goto('/login')
     await page.getByRole('button', { name: trainer.display_name, exact: true }).click()
-    await page.waitForURL('**/trainer/calendar')
+    await page.waitForURL('**/trainer')
     await page.getByTitle(/Odhlásit|Log out/i).click()
     await page.waitForURL('**/login')
     await expect(page.locator('body')).not.toContainText(trainer.display_name)
@@ -55,7 +57,7 @@ test.describe('Smoke', () => {
     const trainer = await getTrainer(request)
     await page.goto('/login')
     await page.getByRole('button', { name: trainer.display_name, exact: true }).click()
-    await page.waitForURL('**/trainer/calendar')
+    await page.waitForURL('**/trainer')
     // "Vybavení" je od 2026-08-02 schované z menu (routa /trainer/equipment funguje dál),
     // viz App.jsx — nebylo jasné, jestli ho David reálně používá vedle nového klientova
     // vlastního odkazu na gym.

@@ -60,8 +60,9 @@ test.describe('Smoke', () => {
     await page.waitForURL('**/trainer')
     // "Vybavení" je od 2026-08-02 schované z menu (routa /trainer/equipment funguje dál),
     // viz App.jsx — nebylo jasné, jestli ho David reálně používá vedle nového klientova
-    // vlastního odkazu na gym.
-    await expect(page.getByRole('link', { name: /^(Knihovna|Library)$/ })).toBeVisible()
+    // vlastního odkazu na gym. Trenérská "Knihovna" (/trainer/content) přejmenována na
+    // "O mně" 2026-08-03 — stejná stránka, jen jiný nav label.
+    await expect(page.getByRole('link', { name: /^(O mně|About me)$/ })).toBeVisible()
 
     const client = await getClient(request)
     await page.getByTitle(/Odhlásit|Log out/i).click()

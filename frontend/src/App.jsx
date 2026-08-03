@@ -53,7 +53,10 @@ const trainerLinks = [
   // schované taky, ale vráceno zpět — je to jediné místo, kde David nahrává/edituje videa
   // cviků k Davidovu vlastnímu bodu 2 z feedbacku (viz
   // project_bloodandguts_david_feedback_implementation memory).
-  { to: '/trainer/content', label: 'Knihovna', labelEn: 'Library' },
+  // Nav label "O mně" (na žádost uživatele 2026-08-03) — stránka (ContentLibrary.jsx) dál
+  // spravuje obojí, "O mně" i generickou "library" knihovnu (viz kind sloupec/odznáček na
+  // sekcích), jen v menu se to teď volá podle toho, co David reálně používá nejvíc.
+  { to: '/trainer/content', label: 'O mně', labelEn: 'About me' },
   { to: '/trainer/inquiries', label: 'Poptávky', labelEn: 'Inquiries' },
 ]
 

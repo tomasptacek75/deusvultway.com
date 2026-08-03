@@ -46,12 +46,11 @@ const trainerLinks = [
   { to: '/trainer/clients', label: 'Klienti', labelEn: 'Clients', end: true },
   { to: '/trainer/calendar', label: 'Kalendář', labelEn: 'Calendar' },
   { to: '/trainer/plans', label: 'Plány', labelEn: 'Plans' },
-  { to: '/trainer/teams', label: 'Týmy', labelEn: 'Teams' },
   { to: '/trainer/exercises', label: 'Cviky', labelEn: 'Exercises' },
-  // "Vybavení" schované z menu 2026-08-02 na žádost uživatele — routa
-  // `/trainer/equipment` zůstává funkční (jen bez odkazu v navigaci). "Cviky" bylo krátce
-  // schované taky, ale vráceno zpět — je to jediné místo, kde David nahrává/edituje videa
-  // cviků k Davidovu vlastnímu bodu 2 z feedbacku (viz
+  // "Vybavení" a "Týmy" schované z menu (2026-08-02 a 2026-08-03) na žádost uživatele —
+  // routy `/trainer/equipment` a `/trainer/teams` zůstávají funkční (jen bez odkazu v
+  // navigaci). "Cviky" bylo krátce schované taky, ale vráceno zpět — je to jediné místo,
+  // kde David nahrává/edituje videa cviků k Davidovu vlastnímu bodu 2 z feedbacku (viz
   // project_bloodandguts_david_feedback_implementation memory).
   // Nav label "O mně" (na žádost uživatele 2026-08-03) — stránka (ContentLibrary.jsx) dál
   // spravuje obojí, "O mně" i generickou "library" knihovnu (viz kind sloupec/odznáček na

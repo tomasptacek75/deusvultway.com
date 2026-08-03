@@ -20,15 +20,17 @@ function parseDateVal(v) {
 
 // Sloupce tabulky na /trainer/clients — key musí odpovídat poli z GET /clients (viz
 // index.php), portalOnly skryje sloupec, když je aktivní filtr "Osobní".
+// Krátké labely — "Poslední" prefix vynechán u všech (je zřejmý z kontextu sloupce), ať se
+// hlavičky vejdou vedle sebe bez nutnosti scrollovat na běžnou šířku obrazovky.
 const COLUMNS = [
   { key: 'display_name', label: 'Jméno', labelEn: 'Name' },
   { key: 'current_price_kc', label: 'Tier', labelEn: 'Tier', portalOnly: true },
-  { key: 'next_consultation_date', label: 'Příští konzultace', labelEn: 'Next consultation' },
-  { key: 'last_feedback_at', label: 'Poslední zpětná vazba', labelEn: 'Last feedback' },
+  { key: 'next_consultation_date', label: 'Konzultace', labelEn: 'Consultation' },
+  { key: 'last_feedback_at', label: 'Zpětná vazba', labelEn: 'Feedback' },
   { key: 'challenge_end_date', label: 'Konec výzvy', labelEn: 'Challenge end' },
-  { key: 'last_payment_at', label: 'Poslední platba', labelEn: 'Last payment' },
-  { key: 'last_progress_entry_at', label: 'Poslední vstup', labelEn: 'Last progress' },
-  { key: 'last_plan_edit_at', label: 'Poslední úprava plánu', labelEn: 'Last plan edit' },
+  { key: 'last_payment_at', label: 'Platba', labelEn: 'Payment' },
+  { key: 'last_progress_entry_at', label: 'Vstup klienta', labelEn: 'Client entry' },
+  { key: 'last_plan_edit_at', label: 'Úprava plánu', labelEn: 'Plan edit' },
 ]
 
 export default function TrainerDashboard() {
@@ -295,21 +297,21 @@ function ClientTable({ clients, t, portal, sort, onSort }) {
               <th key={col.key} className="text-left font-medium text-neutral-400 whitespace-nowrap p-0">
                 <button
                   onClick={() => onSort(col.key)}
-                  className="flex items-center gap-1 px-4 py-3 hover:text-white transition-colors w-full"
+                  className="flex items-center gap-1 px-3 py-3 text-xs uppercase tracking-wide hover:text-white transition-colors w-full"
                 >
                   {t(col.label, col.labelEn)}
-                  {sort.key === col.key && (sort.dir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                  {sort.key === col.key && (sort.dir === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />)}
                 </button>
               </th>
             ))}
-            <th className="w-10" />
+            <th className="w-8" />
           </tr>
         </thead>
         <tbody>
           {clients.map((c) => (
             <tr key={c.id} className="border-b border-neutral-800 last:border-0 hover:bg-neutral-800/50 transition-colors">
               {columns.map((col) => (
-                <td key={col.key} className="px-4 py-3 whitespace-nowrap">
+                <td key={col.key} className="px-3 py-2.5 whitespace-nowrap">
                   {col.key === 'display_name' ? (
                     <Link to={`/trainer/clients/${c.id}`} className="flex items-center gap-2 font-medium hover:text-blood-500">
                       <AvatarThumb userId={c.id} hasAvatar={!!c.has_avatar} size={28} />
@@ -324,7 +326,7 @@ function ClientTable({ clients, t, portal, sort, onSort }) {
                   )}
                 </td>
               ))}
-              <td className="px-4 py-3 text-right">
+              <td className="px-2 py-2.5 text-right">
                 <Link to={`/trainer/clients/${c.id}`}><ArrowRight className="text-neutral-600 hover:text-blood-600" size={16} /></Link>
               </td>
             </tr>

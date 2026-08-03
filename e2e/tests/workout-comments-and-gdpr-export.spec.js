@@ -79,7 +79,9 @@ test.describe('Komentáře k tréninku a GDPR export', () => {
   test('tlačítko GDPR export existuje i na trenérském přehledu', async ({ page, request }) => {
     const trainer = await getTrainer(request)
     await loginViaStorage(page, request, trainer.id)
-    await page.goto('/trainer')
+    // Tlačítko žije na Klientech (TrainerDashboard.jsx) — index /trainer je od 2026-08-03
+    // Overview.jsx dashboard, jiná stránka.
+    await page.goto('/trainer/clients')
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),

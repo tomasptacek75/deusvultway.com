@@ -309,6 +309,37 @@ function initSchema(PDO $pdo, array $config): void
     );
     CREATE INDEX IF NOT EXISTS idx_pay_sub ON payments(subscription_id);
 
+    -- Spravovaný katalog cenových tierů a jednotlivých položek služby v nich (gate 8) —
+    -- subscriptions.tier zůstává volný text kvůli zpětné kompatibilitě, tier_id je nový
+    -- volitelný odkaz na tenhle katalog vedle něj, ne náhrada.
+    CREATE TABLE IF NOT EXISTS subscription_tiers (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        trainer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name       TEXT NOT NULL,
+        name_en    TEXT,
+        price_kc   INTEGER,
+        order_num  INTEGER NOT NULL DEFAULT 0,
+        active     INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_tier_trainer ON subscription_tiers(trainer_id);
+
+    CREATE TABLE IF NOT EXISTS tier_services (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        trainer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name       TEXT NOT NULL,
+        name_en    TEXT,
+        active     INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_tsvc_trainer ON tier_services(trainer_id);
+
+    CREATE TABLE IF NOT EXISTS tier_service_map (
+        tier_id    INTEGER NOT NULL REFERENCES subscription_tiers(id) ON DELETE CASCADE,
+        service_id INTEGER NOT NULL REFERENCES tier_services(id) ON DELETE CASCADE,
+        PRIMARY KEY (tier_id, service_id)
+    );
+
     -- ── Fotky pokroku (K6) ─────────────────────────────────────────────
     CREATE TABLE IF NOT EXISTS progress_photos (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -604,6 +635,20 @@ function initSchema(PDO $pdo, array $config): void
     seedAboutTrainerContent($pdo);
 
     $pdo->exec('PRAGMA user_version = 7');
+    }
+
+    if ($schemaVersion < 8) {
+    // Sleduje, kdy trenér naposledy upravil trénink (dřív jen created_at) — pro "Klienti"
+    // dashboard signál "poslední úprava plánu". Funguje jen od téhle chvíle dál, historii
+    // úprav appka nemá jak dopočítat.
+    try { $pdo->exec("ALTER TABLE workouts ADD COLUMN updated_at DATETIME"); } catch (\Exception) {}
+    // Volitelný odkaz na nový spravovaný katalog subscription_tiers vedle stávajícího
+    // volného textu subscriptions.tier — viz komentář u CREATE TABLE subscription_tiers výš.
+    try { $pdo->exec("ALTER TABLE subscriptions ADD COLUMN tier_id INTEGER REFERENCES subscription_tiers(id)"); } catch (\Exception) {}
+
+    seedSubscriptionTiers($pdo);
+
+    $pdo->exec('PRAGMA user_version = 8');
     }
 }
 
@@ -1038,6 +1083,49 @@ function seedPortalDemoData(PDO $pdo): void
 // jako portálová knihovna, jen kind='about_me' ať to jde v klientské appce oddělit. Jen
 // kostra k vyplnění (viz project_bloodandguts_david_feedback v poznámkách) — placeholder
 // texty a example.com odkazy, stejný vzor jako seedPortalDemoData.
+// Placeholder tiery/služby podle čísel na Landing.jsx (TIERS konstanta) — jen kostra k
+// přejmenování, David finální náplň/ceny 3 variant ještě nedodal (viz CLAUDE.md). Služby
+// jsou "zploštělé" z Landing.jsx's "Vše ze Základu"/"Vše z Pokročilého" dědičnosti do
+// konkrétních položek, ať je jde jednotlivě filtrovat na /trainer/clients.
+function seedSubscriptionTiers(PDO $pdo): void
+{
+    $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
+    if (!$trainer) return;
+    $trainerId = (int)$trainer['id'];
+
+    $services = [
+        'Individuální tréninkový plán' => 'Individual training plan',
+        'Video ukázky cviků s komentářem' => 'Exercise videos with commentary',
+        'Měsíční aktualizace plánu' => 'Monthly plan update',
+        'Týdenní úpravy dle progresu' => 'Weekly adjustments based on progress',
+        'Výživové doporučení' => 'Nutrition guidance',
+        'Sledování cíle a pokroku' => 'Goal and progress tracking',
+        'Přímá zpětná vazba od Davida' => 'Direct feedback from David',
+        'Prioritní úpravy plánu' => 'Priority plan adjustments',
+        'Konzultace 1x měsíčně' => 'Monthly consultation',
+    ];
+    $serviceIds = [];
+    foreach ($services as $name => $nameEn) {
+        $existing = fetchOne($pdo, "SELECT id FROM tier_services WHERE trainer_id=? AND name=?", [$trainerId, $name]);
+        $serviceIds[$name] = $existing ? (int)$existing['id'] : insertRow($pdo, 'tier_services', ['trainer_id' => $trainerId, 'name' => $name, 'name_en' => $nameEn]);
+    }
+
+    $tiers = [
+        ['Základ', 'Basic', 990, 1, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu']],
+        ['Pokročilý', 'Advanced', 1690, 2, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku']],
+        ['Elite', 'Elite', 2690, 3, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku', 'Přímá zpětná vazba od Davida', 'Prioritní úpravy plánu', 'Konzultace 1x měsíčně']],
+    ];
+    foreach ($tiers as [$name, $nameEn, $priceKc, $orderNum, $tierServices]) {
+        $existing = fetchOne($pdo, "SELECT id FROM subscription_tiers WHERE trainer_id=? AND name=?", [$trainerId, $name]);
+        $tierId = $existing ? (int)$existing['id'] : insertRow($pdo, 'subscription_tiers', [
+            'trainer_id' => $trainerId, 'name' => $name, 'name_en' => $nameEn, 'price_kc' => $priceKc, 'order_num' => $orderNum,
+        ]);
+        foreach ($tierServices as $serviceName) {
+            $pdo->prepare("INSERT OR IGNORE INTO tier_service_map (tier_id, service_id) VALUES (?, ?)")->execute([$tierId, $serviceIds[$serviceName]]);
+        }
+    }
+}
+
 function seedAboutTrainerContent(PDO $pdo): void
 {
     $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");

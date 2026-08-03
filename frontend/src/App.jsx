@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { isAuthenticated, homePath } from './api/client'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
+import Overview from './pages/trainer/Overview'
 import TrainerDashboard from './pages/trainer/TrainerDashboard'
 import ClientDetail from './pages/trainer/ClientDetail'
 import Exercises from './pages/trainer/Exercises'
@@ -38,8 +39,10 @@ import DiaryGoal from './pages/diary/DiaryGoal'
 
 const trainerLinks = [
   // Klienti musí být první — David chce po přihlášení rovnou přehled portálových klientů
-  // (viz homePath() v api/client.js a výchozí filtr v TrainerDashboard.jsx).
-  { to: '/trainer', label: 'Klienti', labelEn: 'Clients', end: true },
+  // (viz homePath() v api/client.js a výchozí filtr v TrainerDashboard.jsx). Samotná
+  // landing page (index /trainer) je teď Overview.jsx (dashboard s počty), Klienti je
+  // "o klik dál" na /trainer/clients — logo/brand v headeru vede zpět na Overview.
+  { to: '/trainer/clients', label: 'Klienti', labelEn: 'Clients', end: true },
   { to: '/trainer/calendar', label: 'Kalendář', labelEn: 'Calendar' },
   { to: '/trainer/plans', label: 'Plány', labelEn: 'Plans' },
   { to: '/trainer/teams', label: 'Týmy', labelEn: 'Teams' },
@@ -121,7 +124,8 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<TrainerDashboard />} />
+        <Route index element={<Overview />} />
+        <Route path="clients" element={<TrainerDashboard />} />
         <Route path="calendar" element={<TrainerCalendar />} />
         <Route path="clients/:id" element={<ClientDetail />} />
         <Route path="plans" element={<TrainingPlans />} />

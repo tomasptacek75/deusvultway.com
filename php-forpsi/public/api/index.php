@@ -148,15 +148,32 @@ function clientSummary(PDO $pdo, int $clientId): array
 }
 
 if ($method === 'GET' && $path === '/clients') {
-    requireRole($config, 'trainer');
+    $auth = requireRole($config, 'trainer');
     // current_price_kc/current_tier = nejnovější předplatné klienta — pro řazení Portál
     // klientů podle tieru od nejdražšího po nejlevnější na TrainerDashboard.jsx (žádné
     // pořadí tierů natvrdo v kódu, tier je volný text, price_kc je spolehlivější).
+    // Dalších 5 sloupců (next_consultation_date .. last_plan_edit_at) jsou signály pro
+    // Overview.jsx dashboard a řaditelnou tabulku na /trainer/clients — spočtené tady
+    // jednou přes korelované subquery, ne per-klient smyčkou jako clientSummary().
     $sql = "SELECT id, email, phone, display_name, client_type, gym_id, created_at, (avatar_path IS NOT NULL) AS has_avatar,
         (SELECT price_kc FROM subscriptions WHERE client_id = users.id ORDER BY created_at DESC LIMIT 1) AS current_price_kc,
-        (SELECT tier FROM subscriptions WHERE client_id = users.id ORDER BY created_at DESC LIMIT 1) AS current_tier
+        (SELECT tier FROM subscriptions WHERE client_id = users.id ORDER BY created_at DESC LIMIT 1) AS current_tier,
+        (SELECT MIN(date) FROM workouts WHERE client_id = users.id AND date >= date('now') AND status != 'cancelled') AS next_consultation_date,
+        (SELECT MAX(t) FROM (
+            SELECT wc.created_at AS t FROM workout_comments wc JOIN workouts w2 ON w2.id = wc.workout_id WHERE w2.client_id = users.id AND wc.author_id = ?
+            UNION ALL
+            SELECT ec.created_at AS t FROM exercise_comments ec JOIN workout_exercises we2 ON we2.id = ec.workout_exercise_id JOIN workouts w3 ON w3.id = we2.workout_id WHERE w3.client_id = users.id AND ec.author_id = ?
+        )) AS last_feedback_at,
+        (SELECT MIN(date(period_month || '-01', 'start of month', '+1 month', '-1 day')) FROM challenges WHERE client_id = users.id AND status='active') AS challenge_end_date,
+        (SELECT MAX(p.paid_at) FROM payments p JOIN subscriptions s ON s.id = p.subscription_id WHERE s.client_id = users.id) AS last_payment_at,
+        (SELECT MAX(t) FROM (
+            SELECT created_at AS t FROM goals WHERE client_id = users.id
+            UNION ALL
+            SELECT created_at AS t FROM body_metrics WHERE client_id = users.id
+        )) AS last_progress_entry_at,
+        (SELECT MAX(updated_at) FROM workouts WHERE client_id = users.id) AS last_plan_edit_at
         FROM users WHERE role='client' AND active=1";
-    $params = [];
+    $params = [$auth['user_id'], $auth['user_id']];
     if (!empty($_GET['client_type'])) { $sql .= " AND client_type=?"; $params[] = $_GET['client_type']; }
     $sql .= " ORDER BY display_name";
     $clients = fetchAll($pdo, $sql, $params);
@@ -600,7 +617,7 @@ if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'workouts') {
     $b = jsonInput();
     $title = trim((string)($b['title'] ?? $existing['title']));
     if ($title === '') jsonResponse(['detail' => 'title je povinné'], 400);
-    $pdo->prepare("UPDATE workouts SET title=?, date=?, time=?, location=?, notes=? WHERE id=?")->execute([
+    $pdo->prepare("UPDATE workouts SET title=?, date=?, time=?, location=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")->execute([
         $title, $b['date'] ?? $existing['date'], $b['time'] ?? $existing['time'],
         $b['location'] ?? $existing['location'], $b['notes'] ?? $existing['notes'], $workoutId,
     ]);

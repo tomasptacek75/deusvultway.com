@@ -46,7 +46,7 @@ export default function ClientDetail() {
 
   return (
     <div>
-      <Link to={fromCalendar ? '/trainer/calendar' : '/trainer'} className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-white mb-6">
+      <Link to={fromCalendar ? '/trainer/calendar' : '/trainer/clients'} className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-white mb-6">
         <ArrowLeft size={16} /> {fromCalendar ? t('Zpět na kalendář', 'Back to calendar') : t('Zpět na klienty', 'Back to clients')}
       </Link>
 

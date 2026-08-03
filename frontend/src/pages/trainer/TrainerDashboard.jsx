@@ -1,34 +1,57 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Users, ArrowRight, Activity, Search, Download, Plus } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Users, ArrowRight, ArrowUp, ArrowDown, Search, Download, Plus } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import { useLanguage } from '../../i18n/LanguageContext'
 import AvatarThumb from '../../components/AvatarThumb'
 import { downloadMyDataExport } from '../../utils/gdprExport'
-
-function timeAgo(iso, t) {
-  if (!iso) return t('zatím žádná aktivita', 'no activity yet')
-  const diffMs = Date.now() - new Date(iso.replace(' ', 'T') + 'Z').getTime()
-  const h = Math.floor(diffMs / 3600000)
-  if (h < 1) return t('před chvílí', 'just now')
-  if (h < 24) return t(`před ${h} h`, `${h}h ago`)
-  return t(`před ${Math.floor(h / 24)} d`, `${Math.floor(h / 24)}d ago`)
-}
+import { formatDateShort } from '../../utils/date'
 
 function lastName(displayName) {
   const parts = displayName?.trim().split(' ') ?? []
   return parts[parts.length - 1] ?? ''
 }
 
+function parseDateVal(v) {
+  if (!v) return null
+  const iso = v.length > 10 ? v.replace(' ', 'T') + 'Z' : v + 'T00:00:00'
+  return new Date(iso).getTime()
+}
+
+// Sloupce tabulky na /trainer/clients — key musí odpovídat poli z GET /clients (viz
+// index.php), portalOnly skryje sloupec, když je aktivní filtr "Osobní".
+const COLUMNS = [
+  { key: 'display_name', label: 'Jméno', labelEn: 'Name' },
+  { key: 'current_price_kc', label: 'Tier', labelEn: 'Tier', portalOnly: true },
+  { key: 'next_consultation_date', label: 'Příští konzultace', labelEn: 'Next consultation' },
+  { key: 'last_feedback_at', label: 'Poslední zpětná vazba', labelEn: 'Last feedback' },
+  { key: 'challenge_end_date', label: 'Konec výzvy', labelEn: 'Challenge end' },
+  { key: 'last_payment_at', label: 'Poslední platba', labelEn: 'Last payment' },
+  { key: 'last_progress_entry_at', label: 'Poslední vstup', labelEn: 'Last progress' },
+  { key: 'last_plan_edit_at', label: 'Poslední úprava plánu', labelEn: 'Last plan edit' },
+]
+
 export default function TrainerDashboard() {
   const { t, lang } = useLanguage()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [clients, setClients] = useState([])
   const [query, setQuery] = useState('')
   // "portal" je záměrně výchozí — po přihlášení má David rovnou vidět portálové klienty
-  // (viz homePath() v api/client.js).
-  const [typeFilter, setTypeFilter] = useState('portal')
+  // (viz homePath() v api/client.js, Overview.jsx je landing page, sem se přichází z ní).
+  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || 'portal')
+  // sort.key === null → výchozí řazení (Portál podle ceny sestupně, Osobní/Vše podle jména).
+  // Nastaví se buď kliknutím na hlavičku sloupce, nebo příchodem z Overview.jsx přes
+  // ?sort=&dir= (obousměrná synchronizace, na rozdíl od jednosměrného ?tab= v ClientDetail.jsx).
+  const [sort, setSort] = useState({ key: searchParams.get('sort') || null, dir: searchParams.get('dir') || 'asc' })
   const [showNewForm, setShowNewForm] = useState(false)
   const [newClient, setNewClient] = useState({ email: '', display_name: '', phone: '', client_type: 'personal' })
+
+  useEffect(() => {
+    const params = { type: typeFilter }
+    if (sort.key) { params.sort = sort.key; params.dir = sort.dir }
+    setSearchParams(params, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeFilter, sort.key, sort.dir])
 
   function load() {
     apiClient.get('/clients').then((r) => setClients(r.data))
@@ -48,13 +71,35 @@ export default function TrainerDashboard() {
   const byName = useCallback((a, b) => collator.compare(lastName(a.display_name), lastName(b.display_name)), [collator])
   // Portál klienti řazení od nejdražšího tieru po nejlevnější (podle price_kc jejich
   // posledního předplatného — tier je volný text, cena je spolehlivější kritérium). Klienti
-  // bez předplatného padají na konec.
+  // bez předplatného padají na konec. Tohle je výchozí řazení, dokud uživatel neklikne na
+  // hlavičku sloupce (viz compareBy níže).
   const byPriceDesc = useCallback((a, b) => {
     const pa = a.current_price_kc, pb = b.current_price_kc
     if (pa == null && pb == null) return byName(a, b)
     if (pa == null) return 1
     if (pb == null) return -1
     return pb - pa || byName(a, b)
+  }, [byName])
+
+  // Obecný komparátor pro kliknutí na hlavičku libovolného sloupce — jméno a cena mají
+  // vlastní logiku, zbytek (datumové signály) se řadí jednotně s null vždy na konci.
+  const compareBy = useCallback((key, dir) => (a, b) => {
+    if (key === 'display_name') return dir === 'asc' ? byName(a, b) : byName(b, a)
+    if (key === 'current_price_kc') {
+      const pa = a.current_price_kc, pb = b.current_price_kc
+      if (pa == null && pb == null) return byName(a, b)
+      if (pa == null) return 1
+      if (pb == null) return -1
+      return dir === 'asc' ? pa - pb : pb - pa
+    }
+    // Datumové "staleness" signály: null = "nikdy" = při asc (SIGNAL_META na Overview.jsx
+    // vždy používá asc — "nejvíc pozornosti nejdřív") patří úplně nahoru, ne dolů, jinak by
+    // proklik z dashboardu schoval přesně ty klienty, které měl zvýraznit.
+    const va = parseDateVal(a[key]), vb = parseDateVal(b[key])
+    if (va == null && vb == null) return byName(a, b)
+    if (va == null) return dir === 'asc' ? -1 : 1
+    if (vb == null) return dir === 'asc' ? 1 : -1
+    return dir === 'asc' ? va - vb : vb - va
   }, [byName])
 
   const filteredByQuery = useMemo(() => {
@@ -67,19 +112,31 @@ export default function TrainerDashboard() {
     )
   }, [clients, query])
 
+  const sortFn = useMemo(
+    () => (sort.key ? compareBy(sort.key, sort.dir) : null),
+    [sort.key, sort.dir, compareBy]
+  )
+
   const portalClients = useMemo(
-    () => filteredByQuery.filter((c) => c.client_type === 'portal').slice().sort(byPriceDesc),
-    [filteredByQuery, byPriceDesc]
+    () => filteredByQuery.filter((c) => c.client_type === 'portal').slice().sort(sortFn || byPriceDesc),
+    [filteredByQuery, sortFn, byPriceDesc]
   )
   const personalClients = useMemo(
-    () => filteredByQuery.filter((c) => c.client_type === 'personal').slice().sort(byName),
-    [filteredByQuery, byName]
+    () => filteredByQuery.filter((c) => c.client_type === 'personal').slice().sort(sortFn || byName),
+    [filteredByQuery, sortFn, byName]
   )
   const visibleClients = useMemo(() => {
     if (typeFilter === 'portal') return portalClients
     if (typeFilter === 'personal') return personalClients
-    return filteredByQuery.slice().sort(byName)
-  }, [typeFilter, portalClients, personalClients, filteredByQuery, byName])
+    return filteredByQuery.slice().sort(sortFn || byName)
+  }, [typeFilter, portalClients, personalClients, filteredByQuery, sortFn, byName])
+
+  function toggleSort(key) {
+    setSort((prev) => {
+      if (prev.key === key) return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      return { key, dir: key === 'current_price_kc' ? 'desc' : 'asc' }
+    })
+  }
 
   return (
     <div>
@@ -156,15 +213,15 @@ export default function TrainerDashboard() {
         <>
           <section className="mb-8">
             <h2 className="text-lg mb-3 text-neutral-300">{t('Portál', 'Portal')}</h2>
-            <ClientGrid clients={portalClients} t={t} />
+            <ClientTable clients={portalClients} t={t} portal sort={sort} onSort={toggleSort} />
           </section>
           <section>
             <h2 className="text-lg mb-3 text-neutral-300">{t('Osobní', 'Personal')}</h2>
-            <ClientGrid clients={personalClients} t={t} />
+            <ClientTable clients={personalClients} t={t} sort={sort} onSort={toggleSort} />
           </section>
         </>
       ) : (
-        <ClientGrid clients={visibleClients} t={t} />
+        <ClientTable clients={visibleClients} t={t} portal={typeFilter === 'portal'} sort={sort} onSort={toggleSort} />
       )}
       {clients.length === 0 && <p className="text-neutral-500">{t('Zatím žádní klienti.', 'No clients yet.')}</p>}
 
@@ -178,45 +235,60 @@ export default function TrainerDashboard() {
   )
 }
 
-function ClientGrid({ clients, t }) {
+function formatCellDate(value) {
+  if (!value) return '—'
+  return formatDateShort(value.slice(0, 10))
+}
+
+function ClientTable({ clients, t, portal, sort, onSort }) {
+  const columns = COLUMNS.filter((c) => !c.portalOnly || portal)
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {clients.map((c) => (
-        <Link
-          key={c.id}
-          to={`/trainer/clients/${c.id}`}
-          className="rounded-lg border border-neutral-800 bg-neutral-900 p-5 hover:border-blood-600 transition-colors flex flex-col gap-3 group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              <AvatarThumb userId={c.id} hasAvatar={!!c.has_avatar} size={40} />
-              <div className="min-w-0">
-                <div className="font-semibold truncate flex items-center gap-2">
-                  {c.display_name}
-                  {c.client_type === 'portal' && (
-                    <span className="text-[10px] uppercase tracking-wide text-blood-400 border border-blood-800 rounded px-1.5 py-0.5 shrink-0">
-                      {c.current_tier || t('Portál', 'Portal')}
+    <div className="rounded-lg border border-neutral-800 bg-neutral-900 overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-neutral-800">
+            {columns.map((col) => (
+              <th key={col.key} className="text-left font-medium text-neutral-400 whitespace-nowrap p-0">
+                <button
+                  onClick={() => onSort(col.key)}
+                  className="flex items-center gap-1 px-4 py-3 hover:text-white transition-colors w-full"
+                >
+                  {t(col.label, col.labelEn)}
+                  {sort.key === col.key && (sort.dir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                </button>
+              </th>
+            ))}
+            <th className="w-10" />
+          </tr>
+        </thead>
+        <tbody>
+          {clients.map((c) => (
+            <tr key={c.id} className="border-b border-neutral-800 last:border-0 hover:bg-neutral-800/50 transition-colors">
+              {columns.map((col) => (
+                <td key={col.key} className="px-4 py-3 whitespace-nowrap">
+                  {col.key === 'display_name' ? (
+                    <Link to={`/trainer/clients/${c.id}`} className="flex items-center gap-2 font-medium hover:text-blood-500">
+                      <AvatarThumb userId={c.id} hasAvatar={!!c.has_avatar} size={28} />
+                      {c.display_name}
+                    </Link>
+                  ) : col.key === 'current_price_kc' ? (
+                    <span className="text-xs uppercase tracking-wide text-blood-400 border border-blood-800 rounded px-1.5 py-0.5">
+                      {c.current_tier || (c.current_price_kc ? `${c.current_price_kc} Kč` : t('Portál', 'Portal'))}
                     </span>
+                  ) : (
+                    <span className="text-neutral-400">{formatCellDate(c[col.key])}</span>
                   )}
-                </div>
-                <div className="text-sm text-neutral-500 truncate">{c.phone || c.email}</div>
-              </div>
-            </div>
-            <ArrowRight className="text-neutral-600 group-hover:text-blood-600 shrink-0" size={18} />
-          </div>
-          <div className="flex items-center justify-between text-xs text-neutral-500 border-t border-neutral-800 pt-3">
-            <span className="flex items-center gap-1">
-              <Activity size={12} /> {timeAgo(c.summary?.last_activity, t)}
-            </span>
-            {c.summary?.adherence_pct !== null && c.summary?.adherence_pct !== undefined && (
-              <span className={c.summary.adherence_pct >= 70 ? 'text-blood-500' : 'text-neutral-400'}>
-                {c.summary.adherence_pct}% adherence
-              </span>
-            )}
-          </div>
-        </Link>
-      ))}
-      {clients.length === 0 && <p className="text-neutral-500 text-sm">{t('Žádní klienti v této kategorii.', 'No clients in this category.')}</p>}
+                </td>
+              ))}
+              <td className="px-4 py-3 text-right">
+                <Link to={`/trainer/clients/${c.id}`}><ArrowRight className="text-neutral-600 hover:text-blood-600" size={16} /></Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {clients.length === 0 && <p className="text-neutral-500 text-sm p-4">{t('Žádní klienti v této kategorii.', 'No clients in this category.')}</p>}
     </div>
   )
 }

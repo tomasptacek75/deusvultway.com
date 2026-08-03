@@ -16,7 +16,9 @@ test.describe('Trenér — založení nového klienta (portál)', () => {
 
     try {
       await loginViaStorage(page, request, trainer.id)
-      await page.goto('/trainer')
+      // "Nový klient" a seznam žijí na /trainer/clients — index /trainer je od 2026-08-03
+      // Overview.jsx dashboard (viz App.jsx), ne tenhle formulář.
+      await page.goto('/trainer/clients')
 
       await page.getByRole('button', { name: /Nový klient|New client/ }).click()
       const form = page.locator('form').filter({ has: page.getByPlaceholder(/E-mail|Email/) })
@@ -25,9 +27,12 @@ test.describe('Trenér — založení nového klienta (portál)', () => {
       await form.locator('select').selectOption('portal')
       await form.getByRole('button', { name: /Založit klienta|Create client/ }).click()
 
-      const card = page.locator('a', { hasText: name })
-      await expect(card).toBeVisible()
-      await expect(card).toContainText(/Portál|Portal/)
+      // Tabulkový řádek, ne jen odkaz se jménem — tier badge je teď ve vlastní buňce
+      // vedle jména, ne uvnitř téhož <a> jako dřív u kartičkového gridu.
+      const row = page.locator('tr', { hasText: name })
+      await expect(row).toBeVisible()
+      await expect(row).toContainText(/Portál|Portal/)
+      const card = row.locator('a', { hasText: name })
 
       const created = await (await request.get('/api/clients', { headers, params: { client_type: 'portal' } })).json()
       const match = created.find((c) => c.email === email)

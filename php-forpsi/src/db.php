@@ -650,6 +650,12 @@ function initSchema(PDO $pdo, array $config): void
 
     $pdo->exec('PRAGMA user_version = 8');
     }
+
+    if ($schemaVersion < 9) {
+    seedPortalClientTiers($pdo);
+
+    $pdo->exec('PRAGMA user_version = 9');
+    }
 }
 
 function fetchOne(PDO $pdo, string $sql, array $params = []): ?array
@@ -1123,6 +1129,33 @@ function seedSubscriptionTiers(PDO $pdo): void
         foreach ($tierServices as $serviceName) {
             $pdo->prepare("INSERT OR IGNORE INTO tier_service_map (tier_id, service_id) VALUES (?, ?)")->execute([$tierId, $serviceIds[$serviceName]]);
         }
+    }
+}
+
+// Rozdělí portálové klienty rovnoměrně mezi 3 seedované tiery (round-robin podle id) — na
+// žádost uživatele 2026-08-03, protože bez toho byl Tier/Služba filtr na /trainer/clients
+// technicky funkční, ale prakticky prázdný (žádný demo klient neměl předplatné). Idempotentní
+// per klient: kdo už má JAKÉKOLI předplatné (reálné i dřív naseedované), přeskočí se — nikdy
+// nepřepisuje existující billing data.
+function seedPortalClientTiers(PDO $pdo): void
+{
+    $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
+    if (!$trainer) return;
+
+    $tiers = fetchAll($pdo, "SELECT id, name, price_kc FROM subscription_tiers WHERE trainer_id=? ORDER BY order_num", [(int)$trainer['id']]);
+    if (!$tiers) return;
+
+    $portalClients = fetchAll($pdo, "SELECT id FROM users WHERE role='client' AND client_type='portal' AND active=1 ORDER BY id");
+    $i = 0;
+    foreach ($portalClients as $client) {
+        $clientId = (int)$client['id'];
+        if (fetchOne($pdo, "SELECT id FROM subscriptions WHERE client_id=?", [$clientId])) continue;
+        $tier = $tiers[$i % count($tiers)];
+        insertRow($pdo, 'subscriptions', [
+            'client_id' => $clientId, 'plan_name' => $tier['name'], 'price_kc' => (int)($tier['price_kc'] ?? 0),
+            'billing_period' => 'monthly', 'status' => 'active', 'tier' => $tier['name'], 'tier_id' => (int)$tier['id'],
+        ]);
+        $i++;
     }
 }
 

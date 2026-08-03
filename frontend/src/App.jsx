@@ -39,10 +39,10 @@ import DiaryNextWorkout from './pages/diary/DiaryNextWorkout'
 import DiaryGoal from './pages/diary/DiaryGoal'
 
 const trainerLinks = [
-  // Klienti musí být první — David chce po přihlášení rovnou přehled portálových klientů
-  // (viz homePath() v api/client.js a výchozí filtr v TrainerDashboard.jsx). Samotná
-  // landing page (index /trainer) je teď Overview.jsx (dashboard s počty), Klienti je
-  // "o klik dál" na /trainer/clients — logo/brand v headeru vede zpět na Overview.
+  // Přehled (Overview.jsx, dashboard s počty) je landing page po přihlášení (homePath() v
+  // api/client.js) — dřív dosažitelný jen kliknutím na logo, teď má i vlastní odkaz v menu
+  // na žádost uživatele 2026-08-03.
+  { to: '/trainer', label: 'Přehled', labelEn: 'Overview', end: true },
   { to: '/trainer/clients', label: 'Klienti', labelEn: 'Clients', end: true },
   { to: '/trainer/calendar', label: 'Kalendář', labelEn: 'Calendar' },
   { to: '/trainer/plans', label: 'Plány', labelEn: 'Plans' },

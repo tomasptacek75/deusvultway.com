@@ -88,11 +88,6 @@ export default function ContentLibrary() {
                 {expanded === s.id ? <ChevronUp size={18} className="shrink-0" /> : <ChevronDown size={18} className="shrink-0" />}
                 <span className="font-semibold truncate">{t(s.title, s.title_en || s.title)}</span>
                 <span className="text-xs text-neutral-500 shrink-0">({s.items.length})</span>
-                {s.kind === 'about_me' && (
-                  <span className="text-[10px] uppercase tracking-wide text-blood-500 border border-blood-900/50 rounded px-1.5 py-0.5 shrink-0">
-                    {t('O mně', 'About me')}
-                  </span>
-                )}
               </button>
               <button onClick={() => toggleSectionActive(s)} className="text-neutral-600 hover:text-blood-500 shrink-0" title={s.active ? t('Skrýt sekci', 'Hide section') : t('Odkrýt sekci', 'Show section')}>
                 {s.active ? <Eye size={16} /> : <EyeOff size={16} />}

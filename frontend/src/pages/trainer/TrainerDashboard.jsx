@@ -39,6 +39,10 @@ export default function TrainerDashboard() {
   // "portal" je záměrně výchozí — po přihlášení má David rovnou vidět portálové klienty
   // (viz homePath() v api/client.js, Overview.jsx je landing page, sem se přichází z ní).
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || 'portal')
+  const [tierFilter, setTierFilter] = useState(searchParams.get('tier') || '')
+  const [serviceFilter, setServiceFilter] = useState(searchParams.get('service') || '')
+  const [tiers, setTiers] = useState([])
+  const [services, setServices] = useState([])
   // sort.key === null → výchozí řazení (Portál podle ceny sestupně, Osobní/Vše podle jména).
   // Nastaví se buď kliknutím na hlavičku sloupce, nebo příchodem z Overview.jsx přes
   // ?sort=&dir= (obousměrná synchronizace, na rozdíl od jednosměrného ?tab= v ClientDetail.jsx).
@@ -49,12 +53,16 @@ export default function TrainerDashboard() {
   useEffect(() => {
     const params = { type: typeFilter }
     if (sort.key) { params.sort = sort.key; params.dir = sort.dir }
+    if (tierFilter) params.tier = tierFilter
+    if (serviceFilter) params.service = serviceFilter
     setSearchParams(params, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter, sort.key, sort.dir])
+  }, [typeFilter, sort.key, sort.dir, tierFilter, serviceFilter])
 
   function load() {
     apiClient.get('/clients').then((r) => setClients(r.data))
+    apiClient.get('/subscription-tiers').then((r) => setTiers(r.data))
+    apiClient.get('/tier-services').then((r) => setServices(r.data))
   }
 
   useEffect(load, [])
@@ -112,24 +120,38 @@ export default function TrainerDashboard() {
     )
   }, [clients, query])
 
+  // tier_ids, jejichž katalog služeb obsahuje vybranou službu (viz Tiers.jsx service_ids
+  // na každém tieru) — pro filtr "Služba", nezávislý na filtru "Tier".
+  const tierIdsWithService = useMemo(() => {
+    if (!serviceFilter) return null
+    return new Set(tiers.filter((tr) => tr.service_ids.includes(Number(serviceFilter))).map((tr) => tr.id))
+  }, [tiers, serviceFilter])
+
+  const filteredByTierAndService = useMemo(() => {
+    let list = filteredByQuery
+    if (tierFilter) list = list.filter((c) => String(c.current_tier_id) === tierFilter)
+    if (tierIdsWithService) list = list.filter((c) => c.current_tier_id != null && tierIdsWithService.has(c.current_tier_id))
+    return list
+  }, [filteredByQuery, tierFilter, tierIdsWithService])
+
   const sortFn = useMemo(
     () => (sort.key ? compareBy(sort.key, sort.dir) : null),
     [sort.key, sort.dir, compareBy]
   )
 
   const portalClients = useMemo(
-    () => filteredByQuery.filter((c) => c.client_type === 'portal').slice().sort(sortFn || byPriceDesc),
-    [filteredByQuery, sortFn, byPriceDesc]
+    () => filteredByTierAndService.filter((c) => c.client_type === 'portal').slice().sort(sortFn || byPriceDesc),
+    [filteredByTierAndService, sortFn, byPriceDesc]
   )
   const personalClients = useMemo(
-    () => filteredByQuery.filter((c) => c.client_type === 'personal').slice().sort(sortFn || byName),
-    [filteredByQuery, sortFn, byName]
+    () => filteredByTierAndService.filter((c) => c.client_type === 'personal').slice().sort(sortFn || byName),
+    [filteredByTierAndService, sortFn, byName]
   )
   const visibleClients = useMemo(() => {
     if (typeFilter === 'portal') return portalClients
     if (typeFilter === 'personal') return personalClients
-    return filteredByQuery.slice().sort(sortFn || byName)
-  }, [typeFilter, portalClients, personalClients, filteredByQuery, sortFn, byName])
+    return filteredByTierAndService.slice().sort(sortFn || byName)
+  }, [typeFilter, portalClients, personalClients, filteredByTierAndService, sortFn, byName])
 
   function toggleSort(key) {
     setSort((prev) => {
@@ -154,6 +176,27 @@ export default function TrainerDashboard() {
             <option value="personal">{t('Osobní', 'Personal')}</option>
             <option value="all">{t('Vše', 'All')}</option>
           </select>
+          {typeFilter !== 'personal' && (
+            <>
+              <select
+                value={tierFilter}
+                onChange={(e) => setTierFilter(e.target.value)}
+                className="bg-neutral-900 border border-neutral-800 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">{t('Všechny tiery', 'All tiers')}</option>
+                {tiers.map((tr) => <option key={tr.id} value={tr.id}>{t(tr.name, tr.name_en || tr.name)}</option>)}
+              </select>
+              <select
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+                className="bg-neutral-900 border border-neutral-800 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">{t('Všechny služby', 'All services')}</option>
+                {services.map((s) => <option key={s.id} value={s.id}>{t(s.name, s.name_en || s.name)}</option>)}
+              </select>
+              <Link to="/trainer/tiers" className="text-xs text-blood-500 hover:underline whitespace-nowrap">{t('Spravovat tiery', 'Manage tiers')}</Link>
+            </>
+          )}
           <div className="relative w-full sm:w-64">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
             <input

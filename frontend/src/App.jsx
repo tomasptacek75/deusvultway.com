@@ -13,6 +13,7 @@ import Inquiries from './pages/trainer/Inquiries'
 import TrainingPlans from './pages/trainer/TrainingPlans'
 import Teams from './pages/trainer/Teams'
 import Equipment from './pages/trainer/Equipment'
+import Tiers from './pages/trainer/Tiers'
 import TrainerContentLibrary from './pages/trainer/ContentLibrary'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ClientCalendar from './pages/client/ClientCalendar'
@@ -132,6 +133,7 @@ function App() {
         <Route path="teams" element={<Teams />} />
         <Route path="exercises" element={<Exercises />} />
         <Route path="equipment" element={<Equipment />} />
+        <Route path="tiers" element={<Tiers />} />
         <Route path="content" element={<TrainerContentLibrary />} />
         <Route path="inquiries" element={<Inquiries />} />
       </Route>

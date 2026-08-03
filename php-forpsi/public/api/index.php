@@ -147,6 +147,17 @@ function clientSummary(PDO $pdo, int $clientId): array
     ];
 }
 
+// tier_id (odkaz na subscription_tiers) zrcadlí svůj název do volného textu tier —
+// [tier_id, tier_name]. Bez tier_id se použije volný text z $b['tier'] beze změny (staré
+// chování, zpětná kompatibilita).
+function resolveTier(PDO $pdo, int $trainerId, array $b): array
+{
+    if (empty($b['tier_id'])) return [null, $b['tier'] ?? null];
+    $tier = fetchOne($pdo, "SELECT name FROM subscription_tiers WHERE id=? AND trainer_id=?", [(int)$b['tier_id'], $trainerId]);
+    if (!$tier) jsonResponse(['detail' => 'Tier nenalezen'], 404);
+    return [(int)$b['tier_id'], $tier['name']];
+}
+
 if ($method === 'GET' && $path === '/clients') {
     $auth = requireRole($config, 'trainer');
     // current_price_kc/current_tier = nejnovější předplatné klienta — pro řazení Portál
@@ -158,6 +169,7 @@ if ($method === 'GET' && $path === '/clients') {
     $sql = "SELECT id, email, phone, display_name, client_type, gym_id, created_at, (avatar_path IS NOT NULL) AS has_avatar,
         (SELECT price_kc FROM subscriptions WHERE client_id = users.id ORDER BY created_at DESC LIMIT 1) AS current_price_kc,
         (SELECT tier FROM subscriptions WHERE client_id = users.id ORDER BY created_at DESC LIMIT 1) AS current_tier,
+        (SELECT tier_id FROM subscriptions WHERE client_id = users.id ORDER BY created_at DESC LIMIT 1) AS current_tier_id,
         (SELECT MIN(date) FROM workouts WHERE client_id = users.id AND date >= date('now') AND status != 'cancelled') AS next_consultation_date,
         (SELECT MAX(t) FROM (
             SELECT wc.created_at AS t FROM workout_comments wc JOIN workouts w2 ON w2.id = wc.workout_id WHERE w2.client_id = users.id AND wc.author_id = ?
@@ -1501,10 +1513,14 @@ if ($method === 'POST' && $path === '/subscriptions') {
     $clientId = (int)($b['client_id'] ?? 0);
     assertClientAccess($pdo, $auth, $clientId);
     if (empty($b['plan_name']) || empty($b['price_kc'])) jsonResponse(['detail' => 'plan_name a price_kc jsou povinné'], 400);
+    // tier_id (volitelný odkaz na spravovaný katalog subscription_tiers) zrcadlí svůj
+    // název do volného textu tier, ať zůstane zpětně kompatibilní zobrazení i pro
+    // předplatná bez katalogového tieru.
+    [$tierId, $tierName] = resolveTier($pdo, $auth['user_id'], $b);
     $id = insertRow($pdo, 'subscriptions', [
         'client_id' => $clientId, 'plan_name' => $b['plan_name'], 'price_kc' => (int)$b['price_kc'],
         'billing_period' => $b['billing_period'] ?? 'monthly', 'status' => 'active',
-        'current_period_end' => $b['current_period_end'] ?? null, 'tier' => $b['tier'] ?? null,
+        'current_period_end' => $b['current_period_end'] ?? null, 'tier' => $tierName, 'tier_id' => $tierId,
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM subscriptions WHERE id=?", [$id]), 201);
 }
@@ -1515,12 +1531,101 @@ if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'subscriptions') {
     if (!$existing) jsonResponse(['detail' => 'Předplatné nenalezeno'], 404);
     assertClientAccess($pdo, $auth, (int)$existing['client_id']);
     $b = jsonInput();
-    $pdo->prepare("UPDATE subscriptions SET plan_name=?, price_kc=?, billing_period=?, status=?, current_period_end=?, tier=? WHERE id=?")->execute([
+    if (array_key_exists('tier_id', $b) || array_key_exists('tier', $b)) {
+        [$tierId, $tierName] = resolveTier($pdo, $auth['user_id'], $b);
+    } else {
+        $tierId = $existing['tier_id']; $tierName = $existing['tier'];
+    }
+    $pdo->prepare("UPDATE subscriptions SET plan_name=?, price_kc=?, billing_period=?, status=?, current_period_end=?, tier=?, tier_id=? WHERE id=?")->execute([
         $b['plan_name'] ?? $existing['plan_name'], $b['price_kc'] ?? $existing['price_kc'],
         $b['billing_period'] ?? $existing['billing_period'], $b['status'] ?? $existing['status'],
-        $b['current_period_end'] ?? $existing['current_period_end'], $b['tier'] ?? $existing['tier'], (int)$seg[1],
+        $b['current_period_end'] ?? $existing['current_period_end'], $tierName, $tierId, (int)$seg[1],
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM subscriptions WHERE id=?", [(int)$seg[1]]));
+}
+
+// ── SPRAVOVANÝ KATALOG TIERŮ A SLUŽEB (viz db.php gate 8) ───────────
+
+if ($method === 'GET' && $path === '/subscription-tiers') {
+    $auth = requireRole($config, 'trainer');
+    $includeInactive = !empty($_GET['include_inactive']);
+    $sql = "SELECT * FROM subscription_tiers WHERE trainer_id=?" . ($includeInactive ? "" : " AND active=1") . " ORDER BY order_num, id";
+    $tiers = fetchAll($pdo, $sql, [$auth['user_id']]);
+    foreach ($tiers as &$tier) {
+        $tier['service_ids'] = array_map('intval', array_column(
+            fetchAll($pdo, "SELECT service_id FROM tier_service_map WHERE tier_id=?", [(int)$tier['id']]), 'service_id'
+        ));
+    }
+    unset($tier);
+    jsonResponse($tiers);
+}
+
+if ($method === 'POST' && $path === '/subscription-tiers') {
+    $auth = requireRole($config, 'trainer');
+    $b = jsonInput();
+    if (empty($b['name'])) jsonResponse(['detail' => 'name je povinné'], 400);
+    $id = insertRow($pdo, 'subscription_tiers', [
+        'trainer_id' => $auth['user_id'], 'name' => $b['name'], 'name_en' => $b['name_en'] ?? null,
+        'price_kc' => $b['price_kc'] ?? null, 'order_num' => $b['order_num'] ?? 0,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM subscription_tiers WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'subscription-tiers') {
+    $auth = requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $existing = fetchOne($pdo, "SELECT * FROM subscription_tiers WHERE id=? AND trainer_id=?", [$id, $auth['user_id']]);
+    if (!$existing) jsonResponse(['detail' => 'Tier nenalezen'], 404);
+    $b = jsonInput();
+    $pdo->prepare("UPDATE subscription_tiers SET name=?, name_en=?, price_kc=?, order_num=?, active=? WHERE id=?")->execute([
+        $b['name'] ?? $existing['name'], $b['name_en'] ?? $existing['name_en'],
+        $b['price_kc'] ?? $existing['price_kc'], $b['order_num'] ?? $existing['order_num'],
+        isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM subscription_tiers WHERE id=?", [$id]));
+}
+
+// Nahradí celou množinu služeb pro daný tier (jednodušší než diff, odpovídá
+// checkbox-list UI na Tiers.jsx) — service_ids musí patřit stejnému trenérovi.
+if ($method === 'PUT' && count($seg) === 3 && $seg[0] === 'subscription-tiers' && $seg[2] === 'services') {
+    $auth = requireRole($config, 'trainer');
+    $tierId = (int)$seg[1];
+    $tier = fetchOne($pdo, "SELECT id FROM subscription_tiers WHERE id=? AND trainer_id=?", [$tierId, $auth['user_id']]);
+    if (!$tier) jsonResponse(['detail' => 'Tier nenalezen'], 404);
+    $b = jsonInput();
+    $serviceIds = array_map('intval', $b['service_ids'] ?? []);
+    $pdo->prepare("DELETE FROM tier_service_map WHERE tier_id=?")->execute([$tierId]);
+    $stmt = $pdo->prepare("INSERT INTO tier_service_map (tier_id, service_id) SELECT ?, id FROM tier_services WHERE id=? AND trainer_id=?");
+    foreach ($serviceIds as $serviceId) { $stmt->execute([$tierId, $serviceId, $auth['user_id']]); }
+    jsonResponse(['ok' => true]);
+}
+
+if ($method === 'GET' && $path === '/tier-services') {
+    $auth = requireRole($config, 'trainer');
+    $includeInactive = !empty($_GET['include_inactive']);
+    $sql = "SELECT * FROM tier_services WHERE trainer_id=?" . ($includeInactive ? "" : " AND active=1") . " ORDER BY name";
+    jsonResponse(fetchAll($pdo, $sql, [$auth['user_id']]));
+}
+
+if ($method === 'POST' && $path === '/tier-services') {
+    $auth = requireRole($config, 'trainer');
+    $b = jsonInput();
+    if (empty($b['name'])) jsonResponse(['detail' => 'name je povinné'], 400);
+    $id = insertRow($pdo, 'tier_services', ['trainer_id' => $auth['user_id'], 'name' => $b['name'], 'name_en' => $b['name_en'] ?? null]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM tier_services WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'tier-services') {
+    $auth = requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $existing = fetchOne($pdo, "SELECT * FROM tier_services WHERE id=? AND trainer_id=?", [$id, $auth['user_id']]);
+    if (!$existing) jsonResponse(['detail' => 'Služba nenalezena'], 404);
+    $b = jsonInput();
+    $pdo->prepare("UPDATE tier_services SET name=?, name_en=?, active=? WHERE id=?")->execute([
+        $b['name'] ?? $existing['name'], $b['name_en'] ?? $existing['name_en'],
+        isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM tier_services WHERE id=?", [$id]));
 }
 
 if ($method === 'GET' && $path === '/payments') {

@@ -803,11 +803,13 @@ function BillingTab({ clientId }) {
   const { t } = useLanguage()
   const statusLabel = { active: t('Aktivní', 'Active'), canceled: t('Zrušené', 'Canceled'), past_due: t('Po splatnosti', 'Past due') }
   const [subs, setSubs] = useState([])
-  const [subForm, setSubForm] = useState({ plan_name: '', price_kc: '', billing_period: 'monthly', current_period_end: '', tier: '' })
+  const [tiers, setTiers] = useState([])
+  const [subForm, setSubForm] = useState({ plan_name: '', price_kc: '', billing_period: 'monthly', current_period_end: '', tier_id: '' })
   const [payForms, setPayForms] = useState({})
 
   function load() {
     apiClient.get('/subscriptions', { params: { client_id: clientId } }).then((r) => setSubs(r.data))
+    apiClient.get('/subscription-tiers').then((r) => setTiers(r.data))
   }
 
   useEffect(load, [clientId])
@@ -815,8 +817,8 @@ function BillingTab({ clientId }) {
   async function createSub(e) {
     e.preventDefault()
     if (!subForm.plan_name || !subForm.price_kc) return
-    await apiClient.post('/subscriptions', { client_id: clientId, ...subForm })
-    setSubForm({ plan_name: '', price_kc: '', billing_period: 'monthly', current_period_end: '', tier: '' })
+    await apiClient.post('/subscriptions', { client_id: clientId, ...subForm, tier_id: subForm.tier_id || null })
+    setSubForm({ plan_name: '', price_kc: '', billing_period: 'monthly', current_period_end: '', tier_id: '' })
     load()
   }
 
@@ -838,10 +840,14 @@ function BillingTab({ clientId }) {
           <option value="one_time">{t('Jednorázově', 'One-time')}</option>
         </select>
         <input type="date" value={subForm.current_period_end} onChange={(e) => setSubForm({ ...subForm, current_period_end: e.target.value })} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm" title={t('Platba do', 'Payment due')} />
-        <input placeholder={t('Tier (volitelné, např. Základ)', 'Tier (optional, e.g. Basic)')} value={subForm.tier} onChange={(e) => setSubForm({ ...subForm, tier: e.target.value })} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm" />
+        <select value={subForm.tier_id} onChange={(e) => setSubForm({ ...subForm, tier_id: e.target.value })} className="bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm">
+          <option value="">{t('Bez tieru', 'No tier')}</option>
+          {tiers.map((tr) => <option key={tr.id} value={tr.id}>{t(tr.name, tr.name_en || tr.name)}</option>)}
+        </select>
         <button type="submit" className="col-span-2 md:col-span-4 bg-blood-700 hover:bg-blood-600 transition-colors rounded-md px-4 py-2 text-sm font-medium">{t('Založit předplatné', 'Create subscription')}</button>
       </form>
-      <p className="text-xs text-neutral-500 mb-6">{t('Bez napojení na platební bránu — platby se zaznamenávají ručně po přijetí (převod/hotovost).', 'No payment gateway connected — payments are recorded manually after receipt (transfer/cash).')}</p>
+      <p className="text-xs text-neutral-500 mb-2">{t('Bez napojení na platební bránu — platby se zaznamenávají ručně po přijetí (převod/hotovost).', 'No payment gateway connected — payments are recorded manually after receipt (transfer/cash).')}</p>
+      <Link to="/trainer/tiers" className="text-xs text-blood-500 hover:underline mb-6 inline-block">{t('+ Spravovat tiery', '+ Manage tiers')}</Link>
 
       <div className="space-y-4">
         {subs.map((s) => (

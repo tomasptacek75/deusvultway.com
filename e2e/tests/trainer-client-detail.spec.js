@@ -92,12 +92,13 @@ test.describe('Trenér — detail klienta', () => {
     await page.goto(`/trainer/clients/${client.id}?tab=billing`)
 
     const planName = uniqueName('E2E Plán')
-    await page.getByPlaceholder(/Název plánu/i).fill(planName)
-    await page.getByPlaceholder('Kč').fill('1500')
-    // tier je scaffold pro portálové rozšíření (volný text, žádný enum — viz CLAUDE.md) —
-    // ověřuje se jen že se uloží a zobrazí, ne že něco omezuje.
-    await page.getByPlaceholder(/Tier \(volitelné/i).fill('Elite')
-    await page.getByRole('button', { name: /Založit předplatné|Create subscription/ }).click()
+    const form = page.locator('form').filter({ has: page.getByPlaceholder(/Název plánu/i) })
+    await form.getByPlaceholder(/Název plánu/i).fill(planName)
+    await form.getByPlaceholder('Kč').fill('1500')
+    // tier je od 2026-08-03 select naplněný ze spravovaného katalogu subscription_tiers
+    // (dřív volný text) — "Elite" je jeden ze 3 placeholder tierů naseedovaných v db.php.
+    await form.locator('select').last().selectOption({ label: 'Elite' })
+    await form.getByRole('button', { name: /Založit předplatné|Create subscription/ }).click()
 
     const subCard = page.locator('div.rounded-lg.border', { hasText: planName })
     await expect(subCard).toBeVisible()

@@ -1908,6 +1908,31 @@ function fetchDiaryEntriesForUser(PDO $pdo, int $userId): array
     return $entries;
 }
 
+// Pokud uživatel namluví trénink po částech (rozcvička/hlavní část/kardio zvlášť), sloučí
+// nové cviky do existujících podle názvu (case-insensitive) — série se přičtou k té samé
+// cvičební položce místo duplicitního bloku se stejným jménem.
+function mergeExerciseLists(array $existing, array $incoming): array
+{
+    foreach ($incoming as $newEx) {
+        $name = trim((string)($newEx['name'] ?? ''));
+        $matched = false;
+        foreach ($existing as &$ex) {
+            if (mb_strtolower(trim((string)$ex['name'])) === mb_strtolower($name)) {
+                $nextSetNum = count($ex['sets']) + 1;
+                foreach ($newEx['sets'] ?? [] as $s) {
+                    $s['set_number'] = $nextSetNum++;
+                    $ex['sets'][] = $s;
+                }
+                $matched = true;
+                break;
+            }
+        }
+        unset($ex);
+        if (!$matched) $existing[] = $newEx;
+    }
+    return $existing;
+}
+
 function replaceDiarySets(PDO $pdo, int $entryId, array $exercises): void
 {
     $pdo->prepare("DELETE FROM diary_sets WHERE entry_id=?")->execute([$entryId]);
@@ -2050,13 +2075,39 @@ if ($method === 'POST' && $path === '/diary/upload') {
         jsonResponse(['detail' => $detail], 502);
     }
 
-    $entryId = insertRow($pdo, 'diary_entries', [
-        'user_id' => $userId, 'recorded_at' => $parsed['date'] ?? date('Y-m-d'),
-        'transcript' => $transcript, 'ai_raw_json' => json_encode($parsed, JSON_UNESCAPED_UNICODE),
-        'status' => ($parsed['confidence'] ?? 'high') === 'low' ? 'needs_review' : 'parsed',
-        'notes' => $parsed['notes'] ?? null,
-    ]);
-    replaceDiarySets($pdo, $entryId, $parsed['exercises'] ?? []);
+    // Další namluvení do 120 minut od předchozího záznamu téhož dne = pokračování stejného
+    // tréninku (rozcvička/hlavní část/kardio zvlášť namluvené zvlášť), ne nový samostatný
+    // záznam — sloučí se cviky/série do toho existujícího místo založení dalšího řádku.
+    $date = $parsed['date'] ?? date('Y-m-d');
+    $mergeWindowSec = 120 * 60;
+    $existing = fetchOne($pdo, "SELECT * FROM diary_entries WHERE user_id=? AND recorded_at=? ORDER BY id DESC LIMIT 1", [$userId, $date]);
+    $mergeTarget = null;
+    if ($existing) {
+        $lastActivity = strtotime($existing['created_at'] . ' UTC');
+        if ($lastActivity !== false && (time() - $lastActivity) <= $mergeWindowSec) {
+            $mergeTarget = $existing;
+        }
+    }
+
+    if ($mergeTarget) {
+        $entryId = (int)$mergeTarget['id'];
+        $existingSets = fetchAll($pdo, "SELECT * FROM diary_sets WHERE entry_id=? ORDER BY order_num, set_number", [$entryId]);
+        $mergedExercises = mergeExerciseLists(groupDiarySetsByExercise($existingSets), $parsed['exercises'] ?? []);
+        replaceDiarySets($pdo, $entryId, $mergedExercises);
+        $mergedTranscript = trim(($mergeTarget['transcript'] ?? '') . "\n\n" . $transcript);
+        $mergedNotes = trim(implode("\n", array_filter([$mergeTarget['notes'] ?? null, $parsed['notes'] ?? null], fn($v) => $v !== null && $v !== '')));
+        $status = ($parsed['confidence'] ?? 'high') === 'low' ? 'needs_review' : $mergeTarget['status'];
+        $pdo->prepare("UPDATE diary_entries SET transcript=?, ai_raw_json=?, notes=?, status=? WHERE id=?")
+            ->execute([$mergedTranscript, json_encode($parsed, JSON_UNESCAPED_UNICODE), $mergedNotes ?: null, $status, $entryId]);
+    } else {
+        $entryId = insertRow($pdo, 'diary_entries', [
+            'user_id' => $userId, 'recorded_at' => $date,
+            'transcript' => $transcript, 'ai_raw_json' => json_encode($parsed, JSON_UNESCAPED_UNICODE),
+            'status' => ($parsed['confidence'] ?? 'high') === 'low' ? 'needs_review' : 'parsed',
+            'notes' => $parsed['notes'] ?? null,
+        ]);
+        replaceDiarySets($pdo, $entryId, $parsed['exercises'] ?? []);
+    }
     $pdo->prepare("UPDATE diary_audio_uploads SET transcription_status='ok', entry_id=? WHERE id=?")->execute([$entryId, $uploadId]);
     jsonResponse(fetchDiaryEntryWithSets($pdo, $entryId), 201);
 }

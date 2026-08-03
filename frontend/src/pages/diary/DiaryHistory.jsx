@@ -1,17 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock, NotebookPen, Layers } from 'lucide-react'
+import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock, NotebookPen } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
 import TimeSelect from '../../components/TimeSelect'
 import DiaryBackLink from '../../components/DiaryBackLink'
-import { formatDiarySet, groupDiaryEntriesIntoBlocks } from '../../utils/diary'
-
-function blockTimeRange(block) {
-  const times = block.entries.flatMap((e) => [e.start_time, e.end_time].filter(Boolean))
-  if (times.length === 0) return null
-  return `${times[0]}–${times[times.length - 1]}`
-}
+import { formatDiarySet } from '../../utils/diary'
 
 export default function DiaryHistory() {
   const [entries, setEntries] = useState(null)
@@ -48,11 +42,6 @@ export default function DiaryHistory() {
     await apiClient.delete(`/diary/entries/${id}`)
     setEntries((all) => all.filter((e) => e.id !== id))
   }
-
-  // Víc krátkých namluvení jednoho tréninku (rozcvička/hlavní část/kardio zvlášť) do 120
-  // minut od sebe se zobrazí jako jeden blok — čistě vizuální seskupení, žádná data se
-  // neslučují, každý záznam v bloku zůstává samostatně editovatelný/smazatelný.
-  const blocks = useMemo(() => groupDiaryEntriesIntoBlocks(entries ?? []), [entries])
 
   function renderEntry(e) {
     return (
@@ -157,14 +146,7 @@ export default function DiaryHistory() {
       </h1>
 
       <div className="space-y-3">
-        {blocks.map((block, bi) => block.entries.length > 1 ? (
-          <div key={bi} className="rounded-lg border border-blood-900/40 bg-blood-950/10 p-2 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs text-blood-500 uppercase tracking-wide px-2 pt-1">
-              <Layers size={12} /> Blok cvičení · {block.entries.length} záznamy{blockTimeRange(block) ? ` · ${blockTimeRange(block)}` : ''}
-            </div>
-            <div className="space-y-2">{block.entries.map(renderEntry)}</div>
-          </div>
-        ) : renderEntry(block.entries[0]))}
+        {entries?.map(renderEntry)}
         {entries?.length === 0 && <p className="text-neutral-500 text-sm">Zatím žádné záznamy.</p>}
         {entries === null && <p className="text-neutral-500 text-sm">Načítám…</p>}
       </div>

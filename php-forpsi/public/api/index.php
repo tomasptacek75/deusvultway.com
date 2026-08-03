@@ -1490,6 +1490,130 @@ if ($method === 'DELETE' && count($seg) === 2 && $seg[0] === 'progress-photos') 
     jsonResponse(['ok' => true]);
 }
 
+// ── E-SHOP — malý merch katalog, žádná platební brána (stejně jako subscriptions/
+// payments níže), objednávka je jen záznam, který trenér ručně posouvá přes stavy. ───
+
+if ($method === 'GET' && $path === '/shop-products') {
+    $auth = requireAuth($config);
+    $includeInactive = $auth['role'] === 'trainer' && !empty($_GET['include_inactive']);
+    $sql = "SELECT * FROM shop_products" . ($includeInactive ? "" : " WHERE active=1") . " ORDER BY order_num, id";
+    jsonResponse(fetchAll($pdo, $sql));
+}
+
+if ($method === 'POST' && $path === '/shop-products') {
+    $auth = requireRole($config, 'trainer');
+    $b = jsonInput();
+    if (empty($b['name']) || empty($b['price_kc'])) jsonResponse(['detail' => 'name a price_kc jsou povinné'], 400);
+    $id = insertRow($pdo, 'shop_products', [
+        'trainer_id' => $auth['user_id'], 'name' => $b['name'], 'name_en' => $b['name_en'] ?? null,
+        'description' => $b['description'] ?? null, 'description_en' => $b['description_en'] ?? null,
+        'price_kc' => (int)$b['price_kc'], 'sizes' => $b['sizes'] ?? null, 'category' => $b['category'] ?? null,
+        'order_num' => $b['order_num'] ?? 0,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM shop_products WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'shop-products') {
+    $auth = requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $existing = fetchOne($pdo, "SELECT * FROM shop_products WHERE id=? AND trainer_id=?", [$id, $auth['user_id']]);
+    if (!$existing) jsonResponse(['detail' => 'Produkt nenalezen'], 404);
+    $b = jsonInput();
+    $pdo->prepare("UPDATE shop_products SET name=?, name_en=?, description=?, description_en=?, price_kc=?, sizes=?, category=?, order_num=?, active=? WHERE id=?")->execute([
+        $b['name'] ?? $existing['name'], $b['name_en'] ?? $existing['name_en'],
+        $b['description'] ?? $existing['description'], $b['description_en'] ?? $existing['description_en'],
+        $b['price_kc'] ?? $existing['price_kc'], array_key_exists('sizes', $b) ? $b['sizes'] : $existing['sizes'],
+        $b['category'] ?? $existing['category'], $b['order_num'] ?? $existing['order_num'],
+        isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM shop_products WHERE id=?", [$id]));
+}
+
+if ($method === 'POST' && count($seg) === 3 && $seg[0] === 'shop-products' && $seg[2] === 'image') {
+    $auth = requireRole($config, 'trainer');
+    $id = (int)$seg[1];
+    $product = fetchOne($pdo, "SELECT * FROM shop_products WHERE id=? AND trainer_id=?", [$id, $auth['user_id']]);
+    if (!$product) jsonResponse(['detail' => 'Produkt nenalezen'], 404);
+    if (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) jsonResponse(['detail' => 'image je povinné'], 400);
+    $ext = strtolower(pathinfo((string)$_FILES['image']['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) jsonResponse(['detail' => 'Nepodporovaný formát obrázku'], 400);
+    $dir = dirname($config['db_path']) . '/uploads/shop';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    if ($product['image_path']) @unlink($dir . '/' . $product['image_path']);
+    $filename = bin2hex(random_bytes(16)) . '.' . $ext;
+    move_uploaded_file($_FILES['image']['tmp_name'], $dir . '/' . $filename);
+    $pdo->prepare("UPDATE shop_products SET image_path=? WHERE id=?")->execute([$filename, $id]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM shop_products WHERE id=?", [$id]));
+}
+
+if ($method === 'GET' && count($seg) === 3 && $seg[0] === 'shop-products' && $seg[2] === 'image') {
+    requireAuth($config);
+    $product = fetchOne($pdo, "SELECT * FROM shop_products WHERE id=?", [(int)$seg[1]]);
+    if (!$product || !$product['image_path']) jsonResponse(['detail' => 'Obrázek nenalezen'], 404);
+    $fullPath = dirname($config['db_path']) . '/uploads/shop/' . $product['image_path'];
+    if (!is_file($fullPath)) jsonResponse(['detail' => 'Soubor nenalezen'], 404);
+    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+    $mime = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp'][$ext] ?? 'application/octet-stream';
+    header('Content-Type: ' . $mime);
+    header('Cache-Control: private, max-age=3600');
+    readfile($fullPath);
+    exit;
+}
+
+if ($method === 'GET' && $path === '/shop-orders/me') {
+    $auth = requireAuth($config);
+    jsonResponse(fetchAll($pdo, "
+        SELECT so.*, sp.name AS product_name, sp.name_en AS product_name_en, sp.image_path AS product_image_path
+        FROM shop_orders so JOIN shop_products sp ON sp.id = so.product_id
+        WHERE so.client_id=? ORDER BY so.created_at DESC
+    ", [$auth['user_id']]));
+}
+
+if ($method === 'GET' && $path === '/shop-orders') {
+    $auth = requireRole($config, 'trainer');
+    if (!empty($_GET['client_id'])) {
+        assertClientAccess($pdo, $auth, (int)$_GET['client_id']);
+        jsonResponse(fetchAll($pdo, "
+            SELECT so.*, sp.name AS product_name, sp.name_en AS product_name_en FROM shop_orders so
+            JOIN shop_products sp ON sp.id = so.product_id WHERE so.client_id=? ORDER BY so.created_at DESC
+        ", [(int)$_GET['client_id']]));
+    }
+    jsonResponse(fetchAll($pdo, "
+        SELECT so.*, sp.name AS product_name, sp.name_en AS product_name_en, u.display_name AS client_name
+        FROM shop_orders so
+        JOIN shop_products sp ON sp.id = so.product_id
+        JOIN users u ON u.id = so.client_id
+        ORDER BY so.created_at DESC
+    "));
+}
+
+if ($method === 'POST' && $path === '/shop-orders') {
+    $auth = requireAuth($config);
+    $b = jsonInput();
+    $clientId = (int)($b['client_id'] ?? $auth['user_id']);
+    assertClientAccess($pdo, $auth, $clientId);
+    $product = fetchOne($pdo, "SELECT * FROM shop_products WHERE id=? AND active=1", [(int)($b['product_id'] ?? 0)]);
+    if (!$product) jsonResponse(['detail' => 'Produkt nenalezen'], 404);
+    // price_kc se dopočítá ze serveru (aktuální cena produktu), nikdy z toho, co pošle klient.
+    $id = insertRow($pdo, 'shop_orders', [
+        'client_id' => $clientId, 'product_id' => (int)$product['id'], 'size' => $b['size'] ?? null,
+        'quantity' => max(1, (int)($b['quantity'] ?? 1)), 'price_kc' => (int)$product['price_kc'], 'note' => $b['note'] ?? null,
+    ]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM shop_orders WHERE id=?", [$id]), 201);
+}
+
+if ($method === 'PUT' && count($seg) === 3 && $seg[0] === 'shop-orders' && $seg[2] === 'status') {
+    $auth = requireRole($config, 'trainer');
+    $order = fetchOne($pdo, "SELECT * FROM shop_orders WHERE id=?", [(int)$seg[1]]);
+    if (!$order) jsonResponse(['detail' => 'Objednávka nenalezena'], 404);
+    $b = jsonInput();
+    if (!in_array($b['status'] ?? null, ['nová', 'zaplaceno', 'vyřízeno', 'zrušeno'], true)) {
+        jsonResponse(['detail' => 'status musí být nová|zaplaceno|vyřízeno|zrušeno'], 400);
+    }
+    $pdo->prepare("UPDATE shop_orders SET status=? WHERE id=?")->execute([$b['status'], (int)$seg[1]]);
+    jsonResponse(fetchOne($pdo, "SELECT * FROM shop_orders WHERE id=?", [(int)$seg[1]]));
+}
+
 // ── PŘEDPLATNÉ A PLATBY (T6) — bez napojení na platební bránu (chybí API
 // klíče), trenér platby zaznamenává ručně. ────────────────────────────
 

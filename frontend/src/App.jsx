@@ -14,6 +14,7 @@ import TrainingPlans from './pages/trainer/TrainingPlans'
 import Teams from './pages/trainer/Teams'
 import Equipment from './pages/trainer/Equipment'
 import Tiers from './pages/trainer/Tiers'
+import TrainerShop from './pages/trainer/Shop'
 import TrainerContentLibrary from './pages/trainer/ContentLibrary'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ClientCalendar from './pages/client/ClientCalendar'
@@ -27,6 +28,7 @@ import ClientContentLibrary from './pages/client/ContentLibrary'
 import MyGym from './pages/client/MyGym'
 import ExerciseLibrary from './pages/client/ExerciseLibrary'
 import AboutTrainer from './pages/client/AboutTrainer'
+import ClientShop from './pages/client/Shop'
 import DiaryRegister from './pages/diary/DiaryRegister'
 import DiaryLogin from './pages/diary/DiaryLogin'
 import DiaryResetRequest from './pages/diary/DiaryResetRequest'
@@ -60,6 +62,10 @@ const trainerLinks = [
   // sekcích), jen v menu se to teď volá podle toho, co David reálně používá nejvíc.
   { to: '/trainer/content', label: 'O mně', labelEn: 'About me' },
   { to: '/trainer/inquiries', label: 'Poptávky', labelEn: 'Inquiries' },
+  // E-shop (merch — trička, kraťasy, doplňky) úplně na konci na žádost uživatele
+  // 2026-08-03. Appka nemá platební bránu — objednávka je jen záznam, David ji ručně
+  // posouvá přes stavy (viz project_bloodandguts_client_dashboard memory).
+  { to: '/trainer/shop', label: 'E-shop', labelEn: 'Shop' },
 ]
 
 const clientLinks = [
@@ -68,7 +74,7 @@ const clientLinks = [
   { to: '/client/progress', label: 'Progres', labelEn: 'Progress' },
   { to: '/client/nutrition', label: 'Výživa', labelEn: 'Nutrition' },
   { to: '/client/gym', label: 'Posilovna', labelEn: 'Gym' },
-  { to: '/client/exercises', label: 'Knihovna cviků', labelEn: 'Exercise library' },
+  { to: '/client/exercises', label: 'Cviky', labelEn: 'Exercises' },
   // "Historie" a obecná "Knihovna" schované z menu 2026-08-02 na žádost uživatele — routy
   // `/client/history` a `/client/library` zůstávají funkční, jen bez odkazu v navigaci.
   // Osobní rekordy z Historie se teď zobrazují na Progresu (viz Progress.jsx). "Knihovna
@@ -78,6 +84,7 @@ const clientLinks = [
   { to: '/client/o-davidovi', label: 'O Davidovi', labelEn: 'About David' },
   { to: '/client/messages', label: 'Zprávy', labelEn: 'Messages' },
   { to: '/client/billing', label: 'Platby', labelEn: 'Billing' },
+  { to: '/client/shop', label: 'E-shop', labelEn: 'Shop' },
 ]
 
 const diaryLinks = [
@@ -141,6 +148,7 @@ function App() {
         <Route path="tiers" element={<Tiers />} />
         <Route path="content" element={<TrainerContentLibrary />} />
         <Route path="inquiries" element={<Inquiries />} />
+        <Route path="shop" element={<TrainerShop />} />
       </Route>
 
       <Route
@@ -163,6 +171,7 @@ function App() {
         <Route path="o-davidovi" element={<AboutTrainer />} />
         <Route path="messages" element={<Messages />} />
         <Route path="billing" element={<Billing />} />
+        <Route path="shop" element={<ClientShop />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

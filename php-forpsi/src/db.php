@@ -340,6 +340,43 @@ function initSchema(PDO $pdo, array $config): void
         PRIMARY KEY (tier_id, service_id)
     );
 
+    -- Malý merch e-shop (trička, kraťasy, doplňky) — appka nemá a nikdy neměla platební
+    -- bránu, takže objednávka je jen záznam, který David ručně posune přes stavy (nová →
+    -- zaplaceno → vyřízeno/zrušeno), stejně jako subscriptions/payments. sizes je volný
+    -- čárkou oddělený text ('S,M,L,XL'), ne spravovaný katalog — velikosti jsou vlastnost
+    -- konkrétního produktu, ne sdílený ceník napříč entitami jako equipment_options.
+    CREATE TABLE IF NOT EXISTS shop_products (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        trainer_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name            TEXT NOT NULL,
+        name_en         TEXT,
+        description     TEXT,
+        description_en  TEXT,
+        price_kc        INTEGER NOT NULL,
+        sizes           TEXT,
+        category        TEXT,
+        image_path      TEXT,
+        order_num       INTEGER NOT NULL DEFAULT 0,
+        active          INTEGER NOT NULL DEFAULT 1,
+        created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_shop_products_trainer ON shop_products(trainer_id);
+
+    -- price_kc je snapshot ceny v době objednávky (jako payments.amount_kc) — pozdější
+    -- změna ceny produktu nesmí přepsat, co si klient historicky objednal.
+    CREATE TABLE IF NOT EXISTS shop_orders (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        product_id  INTEGER NOT NULL REFERENCES shop_products(id) ON DELETE CASCADE,
+        size        TEXT,
+        quantity    INTEGER NOT NULL DEFAULT 1,
+        price_kc    INTEGER NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'nová',
+        note        TEXT,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_shop_orders_client ON shop_orders(client_id);
+
     -- ── Fotky pokroku (K6) ─────────────────────────────────────────────
     CREATE TABLE IF NOT EXISTS progress_photos (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -655,6 +692,12 @@ function initSchema(PDO $pdo, array $config): void
     seedPortalClientTiers($pdo);
 
     $pdo->exec('PRAGMA user_version = 9');
+    }
+
+    if ($schemaVersion < 10) {
+    seedShopProducts($pdo);
+
+    $pdo->exec('PRAGMA user_version = 10');
     }
 }
 
@@ -1156,6 +1199,29 @@ function seedPortalClientTiers(PDO $pdo): void
             'billing_period' => 'monthly', 'status' => 'active', 'tier' => $tier['name'], 'tier_id' => (int)$tier['id'],
         ]);
         $i++;
+    }
+}
+
+// Placeholder merch produkty — bez fotek (žádné k dispozici), jasně jen kostra pro Davida
+// k přejmenování/nahrazení skutečnou nabídkou, stejný vzor jako seedSubscriptionTiers.
+function seedShopProducts(PDO $pdo): void
+{
+    $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
+    if (!$trainer) return;
+    $trainerId = (int)$trainer['id'];
+
+    $products = [
+        ['Tréninkové tričko', 'Training T-shirt', 590, 'S,M,L,XL,XXL', 'Trička'],
+        ['Kraťasy', 'Shorts', 690, 'S,M,L,XL,XXL', 'Kraťasy'],
+        ['Šejkr', 'Shaker', 250, null, 'Doplňky'],
+        ['Posilovací pásek na zápěstí', 'Wrist wraps', 350, null, 'Doplňky'],
+    ];
+    foreach ($products as $i => [$name, $nameEn, $priceKc, $sizes, $category]) {
+        if (fetchOne($pdo, "SELECT id FROM shop_products WHERE trainer_id=? AND name=?", [$trainerId, $name])) continue;
+        insertRow($pdo, 'shop_products', [
+            'trainer_id' => $trainerId, 'name' => $name, 'name_en' => $nameEn, 'price_kc' => $priceKc,
+            'sizes' => $sizes, 'category' => $category, 'order_num' => $i,
+        ]);
     }
 }
 

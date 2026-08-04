@@ -2029,6 +2029,18 @@ if ($method === 'POST' && $path === '/diary/reset-confirm') {
     jsonResponse(['access_token' => tokenFor($config, $user), 'user' => userPublic($user)]);
 }
 
+// Sebeobslužné smazání vlastního účtu — appka dřív neměla žádný způsob, jak diary účet
+// odstranit (jen "hide-not-delete" vzor u jiných entit), takže si e2e sada
+// (e2e/tests-diary/diary.spec.js) musela nechávat jednorázové testovací účty na produkci
+// navždy. ON DELETE CASCADE na users(id) smaže i diary_entries/diary_sets/
+// diary_audio_uploads/diary_suggestions/password_resets automaticky (PRAGMA foreign_keys=ON
+// v db.php).
+if ($method === 'DELETE' && $path === '/diary/me') {
+    $auth = requireRole($config, 'diary');
+    $pdo->prepare("DELETE FROM users WHERE id=?")->execute([$auth['user_id']]);
+    jsonResponse(['ok' => true]);
+}
+
 if ($method === 'PUT' && $path === '/diary/goal') {
     $auth = requireRole($config, 'diary');
     $b = jsonInput();

@@ -4,8 +4,8 @@ import { expect } from '@playwright/test'
 // hlavní appky žádný seedovaný "demo trenér/klient" ani /auth/demo-login neexistuje, takže si
 // každý testovací běh musí založit vlastní jednorázový účet. E-mail nese prefix e2e- a
 // časovou značku (stejný princip jako uniqueName() v testData.js), aby se běhy nekolidovaly.
-// Účet samotný appka nedovolí smazat (žádný DELETE /diary/users) — ponechává se, stejně jako
-// jiné drobné E2E artefakty v tomhle projektu (viz e2e/README.md).
+// Volající si účet na konci smaže přes DELETE /diary/me (viz diary.spec.js) — appka jinak
+// nemá žádný způsob, jak diary účet odstranit, jen tenhle sebeobslužný endpoint.
 export async function registerDiaryUser(request) {
   const email = `e2e-diary-${Date.now()}-${Math.floor(Math.random() * 100000)}@example.com`
   const res = await request.post('/api/diary/register', {

@@ -14,7 +14,6 @@ test.describe('Deník (muj.bloodandguts.cz)', () => {
   test('ruční záznam: vlastní váha, předvyplnění nové série, historie', async ({ page, request }) => {
     const user = await registerDiaryUser(request)
     const headers = { Authorization: `Bearer ${user.token}` }
-    let entryId = null
 
     try {
       await loginDiaryUserViaStorage(page, user)
@@ -41,7 +40,6 @@ test.describe('Deník (muj.bloodandguts.cz)', () => {
       const entries = await (await request.get('/api/diary/entries', { headers })).json()
       const entry = entries.find((e) => e.exercises.some((ex) => ex.name === 'Shyby'))
       expect(entry, 'záznam se shyby by měl existovat').toBeTruthy()
-      entryId = entry.id
       const shyby = entry.exercises.find((ex) => ex.name === 'Shyby')
       expect(shyby.sets).toHaveLength(2)
       expect(shyby.sets[0].own_weight).toBe(true)
@@ -54,7 +52,10 @@ test.describe('Deník (muj.bloodandguts.cz)', () => {
       await page.getByRole('button', { name: /Shyby/ }).first().click()
       await expect(page.getByText(/vlastní váha/)).toBeVisible()
     } finally {
-      if (entryId) await request.delete(`/api/diary/entries/${entryId}`, { headers })
+      // DELETE /diary/me smaže celý jednorázový testovací účet (cascade smaže i tenhle
+      // záznam) — dřív appka neměla žádný způsob, jak diary účet odstranit, takže tu po
+      // každém běhu zůstal navždy jeden e2e-diary-...@example.com účet na produkci.
+      await request.delete('/api/diary/me', { headers })
     }
   })
 

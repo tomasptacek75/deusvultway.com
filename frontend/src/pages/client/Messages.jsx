@@ -27,6 +27,7 @@ export default function Messages() {
     load()
     const id = setInterval(load, 15000)
     return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trainerId])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages.length])

@@ -1,44 +1,50 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AppShell from './components/AppShell'
 import ProtectedRoute from './components/ProtectedRoute'
 import { isAuthenticated, homePath } from './api/client'
-import Landing from './pages/Landing'
-import Login from './pages/Login'
-import Overview from './pages/trainer/Overview'
-import TrainerDashboard from './pages/trainer/TrainerDashboard'
-import ClientDetail from './pages/trainer/ClientDetail'
-import Exercises from './pages/trainer/Exercises'
-import TrainerCalendar from './pages/trainer/TrainerCalendar'
-import Inquiries from './pages/trainer/Inquiries'
-import TrainingPlans from './pages/trainer/TrainingPlans'
-import Teams from './pages/trainer/Teams'
-import Equipment from './pages/trainer/Equipment'
-import Tiers from './pages/trainer/Tiers'
-import TrainerShop from './pages/trainer/Shop'
-import TrainerContentLibrary from './pages/trainer/ContentLibrary'
-import ClientDashboard from './pages/client/ClientDashboard'
-import ClientCalendar from './pages/client/ClientCalendar'
-import WorkoutDetail from './pages/client/WorkoutDetail'
-import Progress from './pages/client/Progress'
-import Nutrition from './pages/client/Nutrition'
-import History from './pages/client/History'
-import Messages from './pages/client/Messages'
-import Billing from './pages/client/Billing'
-import ClientContentLibrary from './pages/client/ContentLibrary'
-import MyGym from './pages/client/MyGym'
-import ExerciseLibrary from './pages/client/ExerciseLibrary'
-import AboutTrainer from './pages/client/AboutTrainer'
-import ClientShop from './pages/client/Shop'
-import DiaryRegister from './pages/diary/DiaryRegister'
-import DiaryLogin from './pages/diary/DiaryLogin'
-import DiaryResetRequest from './pages/diary/DiaryResetRequest'
-import DiaryResetConfirm from './pages/diary/DiaryResetConfirm'
-import DiaryHome from './pages/diary/DiaryHome'
-import DiaryRecord from './pages/diary/DiaryRecord'
-import DiaryManualEntry from './pages/diary/DiaryManualEntry'
-import DiaryHistory from './pages/diary/DiaryHistory'
-import DiaryNextWorkout from './pages/diary/DiaryNextWorkout'
-import DiaryGoal from './pages/diary/DiaryGoal'
+
+// Lazy-loaded per route: trenér/klient/deník appky se sdílí v jednom Vite buildu (viz
+// _ftp_deploy_muj.py), takže bez code-splittingu stahoval každý návštěvník — i ten, co vidí
+// jen Landing nebo jen Login — jeden ~525 kB JS chunk se vším pro všechny tři role. Suspense
+// fallback níž je jen text, appka je i tak rychlá (Forpsi + malé chunky), netřeba spinner.
+const Landing = lazy(() => import('./pages/Landing'))
+const Login = lazy(() => import('./pages/Login'))
+const Overview = lazy(() => import('./pages/trainer/Overview'))
+const TrainerDashboard = lazy(() => import('./pages/trainer/TrainerDashboard'))
+const ClientDetail = lazy(() => import('./pages/trainer/ClientDetail'))
+const Exercises = lazy(() => import('./pages/trainer/Exercises'))
+const TrainerCalendar = lazy(() => import('./pages/trainer/TrainerCalendar'))
+const Inquiries = lazy(() => import('./pages/trainer/Inquiries'))
+const TrainingPlans = lazy(() => import('./pages/trainer/TrainingPlans'))
+const Teams = lazy(() => import('./pages/trainer/Teams'))
+const Equipment = lazy(() => import('./pages/trainer/Equipment'))
+const Tiers = lazy(() => import('./pages/trainer/Tiers'))
+const TrainerShop = lazy(() => import('./pages/trainer/Shop'))
+const TrainerContentLibrary = lazy(() => import('./pages/trainer/ContentLibrary'))
+const ClientDashboard = lazy(() => import('./pages/client/ClientDashboard'))
+const ClientCalendar = lazy(() => import('./pages/client/ClientCalendar'))
+const WorkoutDetail = lazy(() => import('./pages/client/WorkoutDetail'))
+const Progress = lazy(() => import('./pages/client/Progress'))
+const Nutrition = lazy(() => import('./pages/client/Nutrition'))
+const History = lazy(() => import('./pages/client/History'))
+const Messages = lazy(() => import('./pages/client/Messages'))
+const Billing = lazy(() => import('./pages/client/Billing'))
+const ClientContentLibrary = lazy(() => import('./pages/client/ContentLibrary'))
+const MyGym = lazy(() => import('./pages/client/MyGym'))
+const ExerciseLibrary = lazy(() => import('./pages/client/ExerciseLibrary'))
+const AboutTrainer = lazy(() => import('./pages/client/AboutTrainer'))
+const ClientShop = lazy(() => import('./pages/client/Shop'))
+const DiaryRegister = lazy(() => import('./pages/diary/DiaryRegister'))
+const DiaryLogin = lazy(() => import('./pages/diary/DiaryLogin'))
+const DiaryResetRequest = lazy(() => import('./pages/diary/DiaryResetRequest'))
+const DiaryResetConfirm = lazy(() => import('./pages/diary/DiaryResetConfirm'))
+const DiaryHome = lazy(() => import('./pages/diary/DiaryHome'))
+const DiaryRecord = lazy(() => import('./pages/diary/DiaryRecord'))
+const DiaryManualEntry = lazy(() => import('./pages/diary/DiaryManualEntry'))
+const DiaryHistory = lazy(() => import('./pages/diary/DiaryHistory'))
+const DiaryNextWorkout = lazy(() => import('./pages/diary/DiaryNextWorkout'))
+const DiaryGoal = lazy(() => import('./pages/diary/DiaryGoal'))
 
 const trainerLinks = [
   // Přehled (Overview.jsx, dashboard s počty) je landing page po přihlášení (homePath() v
@@ -101,6 +107,7 @@ const isMujHost = window.location.hostname === 'muj.bloodandguts.cz' || window.l
 
 function App() {
   return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-neutral-500">Načítám…</div>}>
     <Routes>
       <Route path="/" element={
         isAuthenticated() ? <Navigate to={homePath()} replace />
@@ -176,6 +183,7 @@ function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   )
 }
 

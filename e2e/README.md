@@ -44,6 +44,27 @@ disku). Účel: gate před produkčním deployem — viz `deploy_gated.py` v roo
 Ostatní testy se přihlašují rychle přes API + localStorage (`helpers/auth.js`), ne klikáním
 přes `/login` — jen `smoke.spec.js` klikací flow testuje samostatně.
 
+### Deník (muj.bloodandguts.cz) — samostatná sada
+
+`tests-diary/diary.spec.js` pokrývá jiný produkt (role `diary`, vlastní DB, vlastní deploy přes
+`_ftp_deploy_muj.py` — viz CLAUDE.md): ruční záznam s "vlastní váhou", předvyplnění nové série
+podle předchozí, a zobrazení v historii. Žije mimo `tests/` a mimo hlavní `playwright.config.js`
+— má vlastní `playwright.diary.config.js`, protože tahle appka nemá vlastní "test" subdoménu a
+testuje se přímo proti produkci s jednorázovým účtem (`helpers/diaryAuth.js`). Kdyby seděl ve
+stejném `testDir` jako hlavní sada, bezpodmínečné `test` (bez cesty), kterým ho spouští
+`deploy_gated.py`, by ho vzal s sebou a zasáhl produkci deníku při každém nasazení hlavní
+trenér/klient appky — proto oddělený config i adresář. Spouštět ručně před `_ftp_deploy_muj.py`:
+
+```bash
+cd e2e
+npm run test:diary
+```
+
+Slučování blízkých namluvení (`POST /diary/upload`, do 120 minut) tahle sada záměrně netestuje
+— jediná cesta k tomu vede přes reálný Whisper přepis skutečné řeči, což by v CI bylo
+pomalé/nespolehlivé. Ověřeno ručně při vývoji funkce (viz `project_bloodandguts_diary_merge_feature`
+memory pro postup, pokud je potřeba zopakovat).
+
 ## Spuštění
 
 ```bash

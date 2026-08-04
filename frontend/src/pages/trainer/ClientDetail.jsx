@@ -139,6 +139,7 @@ function WorkoutsTab({ clientId }) {
   useEffect(() => {
     load()
     apiClient.get('/exercises').then((r) => setExercises(r.data))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   async function createWorkout(e) {
@@ -624,6 +625,7 @@ function RepMaxTab({ clientId }) {
   useEffect(() => {
     load()
     apiClient.get('/exercises').then((r) => setExercises(r.data))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   async function submit(e) {
@@ -899,6 +901,7 @@ function MessagesTab({ clientId }) {
     load()
     const id = setInterval(load, 15000)
     return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages.length])

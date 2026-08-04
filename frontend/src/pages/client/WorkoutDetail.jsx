@@ -30,6 +30,7 @@ export default function WorkoutDetail() {
 
   useEffect(() => {
     return initOfflineSync(() => { setQueuedCount(getQueuedCount()); load() })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   async function completeWorkout() {

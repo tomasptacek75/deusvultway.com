@@ -21,6 +21,7 @@ export default function Progress() {
   function loadPrs() { apiClient.get(`/clients/${user.id}/prs`).then((r) => setPrs(r.data)) }
   function loadPhotos() { apiClient.get('/progress-photos').then((r) => setPhotos(r.data)) }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadGoals(); loadMetrics(); loadPrs(); loadPhotos() }, [])
 
   useEffect(() => {

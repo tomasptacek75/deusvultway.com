@@ -86,6 +86,32 @@ def remote_file_exists(ftp, remote_path):
         return False
 
 
+# Vite builds with emptyOutDir:false (assets/ sits inside php-forpsi/public alongside api/,
+# which emptyOutDir would wipe) — so old content-hashed JS/CSS never get removed locally on
+# their own, and upload_dir() only ever adds/overwrites, never deletes. Without this, every
+# stale local file (and every deploy that ever uploaded one) stays on the remote forever.
+# frontend/scripts/clean-stale-assets.js prunes the local copy after every build; this mirrors
+# that onto the remote so old deploys' leftovers actually go away too.
+def prune_remote_assets(ftp, remote_dir, local_dir):
+    local_files = set(os.listdir(local_dir))
+    try:
+        remote_entries = ftp.nlst(remote_dir)
+    except ftplib.error_perm:
+        return 0
+    removed = 0
+    for remote_path in remote_entries:
+        name = remote_path.rsplit('/', 1)[-1]
+        if name in ('.', '..') or name in local_files:
+            continue
+        try:
+            ftp.delete(f"{remote_dir}/{name}")
+            removed += 1
+            p(f"  smazáno (zastaralé): {remote_dir}/{name}")
+        except ftplib.error_perm:
+            pass
+    return removed
+
+
 def main():
     if not os.path.isdir(LOCAL_PUBLIC):
         p(f"Chyba: {LOCAL_PUBLIC} neexistuje. Spusť nejdřív `npm run build` ve frontend/.")
@@ -98,6 +124,7 @@ def main():
 
     p(f"Nahrávám php-forpsi/public → {REMOTE_ROOT} …")
     count = upload_dir(ftp, LOCAL_PUBLIC, REMOTE_ROOT)
+    prune_remote_assets(ftp, f"{REMOTE_ROOT}/assets", os.path.join(LOCAL_PUBLIC, 'assets'))
 
     p(f"Nahrávám php-forpsi/src → {REMOTE_ROOT}/src (bez config.php) …")
     count += upload_dir(ftp, LOCAL_SRC, f"{REMOTE_ROOT}/src", skip_files=SRC_SKIP_FILES)

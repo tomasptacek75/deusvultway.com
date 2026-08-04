@@ -6,6 +6,7 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
+    "test:diary": "playwright test --config=playwright.diary.config.js",
     "report": "playwright show-report"
   },
   "devDependencies": {

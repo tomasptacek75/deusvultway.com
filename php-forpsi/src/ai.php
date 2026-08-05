@@ -177,6 +177,11 @@ function claudeStructureWorkout(array $config, string $transcript, array $knownE
 
 // Navrhne další trénink podle cíle uživatele (síla/objem/mix) a jeho zalogované historie.
 // $history je pole řádků [recorded_at, exercise_name, set_number, reps, weight_kg].
+function diaryGoalLabel(string $goal): string
+{
+    return ['sila' => 'síla (nízké opakování, vysoká váha)', 'objem' => 'objem/hypertrofie (vyšší opakování, kratší odpočinek)', 'mix' => 'mix síly a objemu'][$goal] ?? 'mix síly a objemu';
+}
+
 function claudeSuggestNextWorkout(array $config, string $goal, array $history, ?string $note = null): array
 {
     $schema = [
@@ -203,7 +208,7 @@ function claudeSuggestNextWorkout(array $config, string $goal, array $history, ?
         'required' => ['summary', 'suggested_timing', 'suggested_exercises'],
         'additionalProperties' => false,
     ];
-    $goalLabel = ['sila' => 'síla (nízké opakování, vysoká váha)', 'objem' => 'objem/hypertrofie (vyšší opakování, kratší odpočinek)', 'mix' => 'mix síly a objemu'][$goal] ?? 'mix síly a objemu';
+    $goalLabel = diaryGoalLabel($goal);
     $system = 'Jsi zkušený silový trenér. Na základě zalogované historie tréninků a cíle uživatele navrhni '
         . "další trénink. Cíl uživatele: {$goalLabel}. Řiď se rozumnou progresí (postupné navyšování váhy/objemu) "
         . 'a rozumným rozložením partií vzhledem k tomu, co bylo cvičeno naposledy. Odpovídej v češtině.';
@@ -224,6 +229,44 @@ function claudeSuggestNextWorkout(array $config, string $goal, array $history, ?
         'system' => $system,
         'output_config' => ['format' => ['type' => 'json_schema', 'schema' => $schema]],
         'messages' => [['role' => 'user', 'content' => json_encode(['goal' => $goal, 'history' => $history, 'note' => $note], JSON_UNESCAPED_UNICODE)]],
+    ]);
+    $parsed = json_decode(anthropicText($resp) ?: '{}', true);
+    return is_array($parsed) ? $parsed : [];
+}
+
+// Nahradí jeden cvik v už existujícím návrhu — vrací JEDEN cvik (ne pole), který zapadá do
+// zbytku plánu ($otherExercises) a nezdvojuje ho. Použito z POST /diary/next-workout/replace-exercise,
+// když uživatel klikne na "nahradit jiným" u konkrétního navrženého cviku.
+function claudeReplaceExercise(array $config, string $goal, array $history, array $otherExercises, ?string $note = null): array
+{
+    $schema = [
+        'type' => 'object',
+        'properties' => [
+            'name' => ['type' => 'string'],
+            'sets' => ['type' => 'integer'],
+            'reps' => ['type' => 'string', 'description' => 'např. "5" nebo "8-10"'],
+            'target_weight_kg' => ['type' => ['number', 'null']],
+            'reason' => ['type' => 'string', 'description' => 'Krátké zdůvodnění vzhledem k historii, cíli a zbytku plánu'],
+        ],
+        'required' => ['name', 'sets', 'reps', 'target_weight_kg', 'reason'],
+        'additionalProperties' => false,
+    ];
+    $goalLabel = diaryGoalLabel($goal);
+    $otherNames = implode(', ', array_column($otherExercises, 'name')) ?: 'žádné další cviky';
+    $system = 'Jsi zkušený silový trenér. Uživatel odstranil jeden cvik ze svého navrženého tréninku a chce '
+        . "na jeho místo jiný. Cíl uživatele: {$goalLabel}. Zbytek dnešního plánu: {$otherNames}. Navrhni JEDEN "
+        . 'odlišný cvik, který do zbytku plánu zapadá, nezdvojuje žádný z uvedených cviků a bere v úvahu '
+        . 'zalogovanou historii tréninků a rozumnou progresi. Odpovídej v češtině.';
+    if ($note) {
+        $system .= " Uživatel navíc uvedl poznámku k tomu, jak se dnes cítí nebo co je potřeba zohlednit: "
+            . "\"{$note}\" — zohledni ji přednostně před obvyklou progresí.";
+    }
+    $resp = anthropicMessages($config, [
+        'model' => 'claude-sonnet-5',
+        'max_tokens' => 2000,
+        'system' => $system,
+        'output_config' => ['format' => ['type' => 'json_schema', 'schema' => $schema]],
+        'messages' => [['role' => 'user', 'content' => json_encode(['goal' => $goal, 'history' => $history, 'other_exercises' => $otherExercises], JSON_UNESCAPED_UNICODE)]],
     ]);
     $parsed = json_decode(anthropicText($resp) ?: '{}', true);
     return is_array($parsed) ? $parsed : [];

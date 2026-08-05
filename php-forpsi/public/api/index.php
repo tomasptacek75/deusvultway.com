@@ -2176,17 +2176,18 @@ if ($method === 'GET' && $path === '/diary/next-workout') {
     $auth = requireRole($config, 'diary');
     $userId = (int)$auth['user_id'];
     $note = trim((string)($_GET['note'] ?? ''));
+    $forceRefresh = !empty($_GET['refresh']);
     $user = fetchOne($pdo, "SELECT * FROM users WHERE id=?", [$userId]);
-    $lastEntry = fetchOne($pdo, "SELECT MAX(recorded_at) AS d FROM diary_entries WHERE user_id=?", [$userId]);
     $fresh = fetchOne($pdo, "SELECT * FROM diary_suggestions WHERE user_id=? ORDER BY created_at DESC LIMIT 1", [$userId]);
 
-    // Poznámka je kontext jen pro tohle jedno vygenerování (bolest, zranění, "chci dnes"...),
-    // ne trvalý stav — požadavek s poznámkou vždy přegeneruje, a jeho výsledek se navíc nikdy
-    // nebere jako "stále čerstvý" pro pozdější požadavek BEZ poznámky (`empty($fresh['note'])`),
-    // ať se stará poznámka netahá do budoucích návrhů, kde už neplatí.
-    $stillFresh = $note === '' && $fresh && empty($fresh['note'])
-        && (!$lastEntry['d'] || $fresh['created_at'] >= $lastEntry['d'])
-        && strtotime($fresh['created_at']) > time() - 12 * 3600;
+    // Návrh zůstává stejný — i po zalogování některého z navržených cviků — dokud uživatel sám
+    // neklikne na přepočítání (refresh=1) nebo nezadá poznámku. Dřív se přegeneroval při
+    // každém návratu na stránku, jakmile přibyl nový záznam v historii, takže zmizely i
+    // ostatní navržené cviky, které uživatel ještě nestihl udělat. Poznámka je navíc kontext
+    // jen pro tohle jedno vygenerování (bolest, zranění, "chci dnes"...), ne trvalý stav —
+    // požadavek s poznámkou vždy přegeneruje, a jeho výsledek se nikdy nebere jako "stále
+    // platný" pro pozdější požadavek BEZ poznámky (`empty($fresh['note'])`).
+    $stillFresh = $note === '' && !$forceRefresh && $fresh && empty($fresh['note']);
     if ($stillFresh) {
         jsonResponse(json_decode($fresh['suggestion_json'], true));
     }
@@ -2207,6 +2208,41 @@ if ($method === 'GET' && $path === '/diary/next-workout') {
         'suggestion_json' => json_encode($suggestion, JSON_UNESCAPED_UNICODE), 'based_on_entry_count' => count($history),
         'note' => $note ?: null,
     ]);
+    jsonResponse($suggestion);
+}
+
+// Nahradí JEDEN cvik v aktuálním (uloženém) návrhu jiným, místo přegenerování celého plánu —
+// zbytek navržených cviků (a jejich pořadí) zůstává nedotčený, stejně jako sticky chování
+// GET /diary/next-workout výše.
+if ($method === 'POST' && $path === '/diary/next-workout/replace-exercise') {
+    $auth = requireRole($config, 'diary');
+    $userId = (int)$auth['user_id'];
+    $b = jsonInput();
+    $index = (int)($b['index'] ?? -1);
+
+    $fresh = fetchOne($pdo, "SELECT * FROM diary_suggestions WHERE user_id=? ORDER BY created_at DESC LIMIT 1", [$userId]);
+    if (!$fresh) jsonResponse(['detail' => 'Žádný návrh k úpravě neexistuje.'], 404);
+    $suggestion = json_decode($fresh['suggestion_json'], true);
+    $exercises = $suggestion['suggested_exercises'] ?? [];
+    if ($index < 0 || $index >= count($exercises)) jsonResponse(['detail' => 'Neplatný index cviku.'], 400);
+
+    $user = fetchOne($pdo, "SELECT * FROM users WHERE id=?", [$userId]);
+    $history = fetchAll($pdo, "SELECT de.recorded_at, ds.exercise_name, ds.set_number, ds.reps, ds.weight_kg
+        FROM diary_sets ds JOIN diary_entries de ON de.id=ds.entry_id WHERE de.user_id=?
+        ORDER BY de.recorded_at DESC LIMIT 200", [$userId]);
+    $otherExercises = array_values(array_diff_key($exercises, [$index => true]));
+
+    try {
+        $replacement = claudeReplaceExercise($config, $user['diary_goal'] ?? 'mix', $history, $otherExercises, $fresh['note'] ?: null);
+    } catch (\Throwable $e) {
+        logError('diary/next-workout/replace-exercise selhalo: ' . $e->getMessage());
+        jsonResponse(['detail' => 'Náhradní cvik se nepodařilo vygenerovat, zkus to prosím znovu.'], 502);
+    }
+
+    $exercises[$index] = $replacement;
+    $suggestion['suggested_exercises'] = $exercises;
+    $pdo->prepare("UPDATE diary_suggestions SET suggestion_json=? WHERE id=?")
+        ->execute([json_encode($suggestion, JSON_UNESCAPED_UNICODE), (int)$fresh['id']]);
     jsonResponse($suggestion);
 }
 

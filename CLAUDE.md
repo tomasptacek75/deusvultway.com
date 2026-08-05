@@ -86,12 +86,12 @@ This replaced an earlier design where that whole block ran unconditionally on ev
 
 ## Current status / known gaps (as of 2026-07-23)
 
-- Landing page pricing tiers (990/1690/2690 Kč) are placeholder content — David needs to supply real tier names, prices, and feature lists.
+- **Pricing simplified to 2 tiers (2026-08-05, at the user's request): Profi 1 500 Kč / Elite 3 000 Kč** — replaces the old 3-tier placeholder (Základ/Pokročilý/Elite, 990/1690/2690 Kč). Changed in two places: `Landing.jsx`'s `TIERS` marketing copy, and the real DB-backed `subscription_tiers` catalog (managed via the trainer's `Tiers.jsx` page, actually assigned to clients' `subscriptions`). Since `seedSubscriptionTiers()` in `db.php` only runs once (gated behind `PRAGMA user_version < 8`, already past that on production/test), just editing its tier array wouldn't touch already-seeded data — a new migration, `consolidateSubscriptionTiers()` (gate `< 13`), renames the existing "Pokročilý" catalog row to "Profi" (its service list already matched the desired Profi feature set) and re-prices it to 1500, re-prices "Elite" to 3000, and reassigns/deletes the old "Základ" row — including updating any client `subscriptions` that referenced it, so the trainer's `/trainer/clients` list stops showing 3 tier categories. Elite is now visually distinct (amber/gold badge vs. Profi's red) on `/trainer/clients`, `ClientDetail.jsx`'s Billing tab, and the client's own `Billing.jsx` — matched on the literal tier name string, since tier is trainer-managed free text, not an enum. Feature/price differentiation between the two tiers is still David's call beyond this structural simplification.
 - Exercise videos are a placeholder (`exercises.video_url`, manually pasted URL e.g. an unlisted YouTube link) — no upload pipeline built yet.
 - One test contact-form submission ("Deploy Test" / deploytest@example.com) exists in the production `inquiries` table from deploy verification. There's no delete endpoint for inquiries yet.
 - Real password-based auth + reset flow is not built (see "Auth" above) — schema (`users.password_hash`) is ready for it.
 - SSL on a freshly-pointed Forpsi domain (`bloodandguts.cz` originally 2026-07-23, then `deusvultway.com` again on 2026-08-05) reliably shows an expired/not-yet-issued certificate error right after first deploy, and reliably resolves itself (Forpsi's own auto-issuance) within roughly 10 minutes — not something fixed via this repo, just a known pattern to expect and wait out, not panic over, whenever a new domain/subdomain first goes live.
-- EN/CS language toggle (flag icon in `AppShell`, see `frontend/src/i18n/LanguageContext.jsx`) now covers every page in both the trainer and client apps — completed and deployed to both test and production 2026-07-23. Backend error strings (`jsonResponse(['detail' => ...])`) and seeded demo *content* (exercise names/cues, nutrition notes) remain Czech-only by design — that's real/simulated training content, not UI chrome, and out of scope for this toggle.
+- EN/CS language toggle (flag icon in `AppShell`, see `frontend/src/i18n/LanguageContext.jsx`) now covers every page in both the trainer and client apps — completed and deployed to both test and production 2026-07-23. Backend error strings (`jsonResponse(['detail' => ...])`) and seeded demo *content* (exercise names/cues, nutrition notes) remain Czech-only by design — that's real/simulated training content, not UI chrome, and out of scope for this toggle. **Default language flipped to English on 2026-08-05** (at the user's request) — `LanguageProvider`'s `useState` initializer now falls back to `'en'` instead of `'cs'` when `localStorage`'s `bg_lang` is unset (first-ever visit); anyone who already toggled keeps their saved choice. The e2e suite is written entirely against Czech text, so `e2e/helpers/auth.js`'s `loginViaStorage` now explicitly pins `bg_lang: 'cs'` on login (only if not already set, so `i18n.spec.js`'s own toggle-and-reload test isn't fought by `addInitScript` re-running on every reload) — don't remove that pin without also rewriting the specs.
 - **Production has 23 demo clients, not just the original 3** (as of 2026-07-24) — `seedExtraDemoClients()`/`seedJulyAugustDemoSchedule()`/`backfillDemoPhones()` in `db.php` added 20 more named Czech clients plus a July/August 2026 demo schedule (times, phone numbers, fitness-emoji avatars) purely to showcase calendar features. Don't mistake this bulk of clients for real signups — see the memory note for full detail if you need it, this is just a flag so it doesn't look like unexplained data drift.
 
 **As of 2026-07-23, production had feature parity with test (both were `bloodandguts.cz`/`test.bloodandguts.cz` at the time; the same statement holds for `deusvultway.com`/`test.deusvultway.com` after the 2026-08-05 domain migration, which moved the identical build/data to new hosting without changing feature scope).**
@@ -145,7 +145,7 @@ a plan-mode design session that found most of what the spec asked for was alread
   the content library were both explicitly confirmed (by the user, during design) as identical for
   every client regardless of type, so there is currently nothing concrete for `client_type` or
   `subscriptions.tier` to actually restrict — don't add gating logic speculatively; wait for David
-  to decide what (if anything) should differ between the 3 pricing tiers.
+  to decide what (if anything) should differ between the 2 pricing tiers (Profi/Elite).
 - **`POST /clients` / `PUT /clients/{id}`** — this app had **no way at all** to create a new client
   before this (every user, including all 23 demo clients, only ever existed via hardcoded seeds in
   `db.php`). This was the first blocking piece; the "+ Nový klient" form on `TrainerDashboard.jsx`
@@ -173,9 +173,9 @@ a plan-mode design session that found most of what the spec asked for was alread
   demos.
 - **`subscriptions.tier`** — free-text scaffold column (mirrors `plan_name`'s existing pattern),
   surfaced as an optional input in `ClientDetail.jsx`'s Billing tab. `Landing.jsx`'s `TIERS` array
-  (still placeholder: Základ/Pokročilý/Elite, 990/1690/2690 Kč) is the obvious eventual public face
-  of these tiers, but isn't wired to real subscription data yet — David hasn't supplied final tier
-  names/prices/differentiators.
+  (now Profi/Elite, 1500/3000 Kč — see "Pricing simplified to 2 tiers" above) is the obvious
+  eventual public face of these tiers and now matches the real `subscription_tiers` catalog
+  structurally, but David still hasn't supplied final feature-level differentiators between the two.
 - **Every new hide-able entity follows the existing `users.active` precedent exactly**: an
   `active INTEGER DEFAULT 1` column, a `PUT` toggle endpoint, and client-facing reads filtered to
   `active=1` while trainer management screens show everything (with `?include_inactive=1`). No

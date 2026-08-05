@@ -11,7 +11,7 @@ const LanguageContext = createContext(null)
 // by komponenty s `useEffect([..., t])` (např. NotificationBell polling) zbytečně re-spouštěly
 // efekt při každém re-renderu providera (třeba při navigaci uvnitř BrowserRouteru).
 export function LanguageProvider({ children }) {
-  const [lang, setLang] = useState(() => localStorage.getItem('bg_lang') || 'cs')
+  const [lang, setLang] = useState(() => localStorage.getItem('bg_lang') || 'en')
 
   const toggle = useCallback(() => {
     setLang((prev) => {

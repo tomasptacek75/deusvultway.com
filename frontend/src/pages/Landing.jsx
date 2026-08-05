@@ -10,22 +10,11 @@ const TRAINER_PHONE = '+420 736 690 419'
 
 const TIERS = [
   {
-    name: 'Základ', nameEn: 'Basic',
-    price: '990 Kč / měsíc', priceEn: '990 CZK / month',
-    note: '(příklad ceny — David doplní)', noteEn: '(example price — David to confirm)',
+    name: 'Profi', nameEn: 'Pro',
+    price: '1 500 Kč / měsíc', priceEn: '1,500 CZK / month',
     features: [
       ['Individuální tréninkový plán', 'Individual training plan'],
       ['Video ukázky cviků s komentářem', 'Exercise videos with commentary'],
-      ['Měsíční aktualizace plánu', 'Monthly plan update'],
-    ],
-  },
-  {
-    name: 'Pokročilý', nameEn: 'Advanced',
-    price: '1 690 Kč / měsíc', priceEn: '1,690 CZK / month',
-    note: '(příklad ceny — David doplní)', noteEn: '(example price — David to confirm)',
-    highlighted: true,
-    features: [
-      ['Vše ze Základu', 'Everything in Basic'],
       ['Týdenní úpravy dle progresu', 'Weekly adjustments based on progress'],
       ['Výživové doporučení', 'Nutrition guidance'],
       ['Sledování cíle a pokroku', 'Goal and progress tracking'],
@@ -33,10 +22,10 @@ const TIERS = [
   },
   {
     name: 'Elite', nameEn: 'Elite',
-    price: '2 690 Kč / měsíc', priceEn: '2,690 CZK / month',
-    note: '(příklad ceny — David doplní)', noteEn: '(example price — David to confirm)',
+    price: '3 000 Kč / měsíc', priceEn: '3,000 CZK / month',
+    highlighted: true,
     features: [
-      ['Vše z Pokročilého', 'Everything in Advanced'],
+      ['Vše z Profi', 'Everything in Pro'],
       ['Přímá zpětná vazba od Davida', 'Direct feedback from David'],
       ['Prioritní úpravy plánu', 'Priority plan adjustments'],
       ['Konzultace 1x měsíčně', 'Monthly consultation'],
@@ -142,12 +131,9 @@ export default function Landing() {
       <section id="plany" className="max-w-6xl mx-auto px-4 py-16">
         <h2 className="text-3xl text-center mb-2">{t('Předplatné', 'Subscriptions')}</h2>
         <p className="text-center text-neutral-500 mb-12 text-sm">
-          {t(
-            'Uvedené ceny jsou orientační příklady — reálné tiery a ceny doplní David.',
-            'Prices shown are indicative examples — David will confirm the real tiers and prices.'
-          )}
+          {t('Vyber si úroveň, která ti sedne.', 'Pick the tier that suits you.')}
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
           {TIERS.map((tier) => (
             <div
               key={tier.name}
@@ -158,8 +144,7 @@ export default function Landing() {
               }`}
             >
               <h3 className="text-2xl mb-1">{t(tier.name, tier.nameEn)}</h3>
-              <div className="text-3xl font-bold mb-1">{t(tier.price, tier.priceEn)}</div>
-              <div className="text-xs text-neutral-500 mb-6">{t(tier.note, tier.noteEn)}</div>
+              <div className="text-3xl font-bold mb-6">{t(tier.price, tier.priceEn)}</div>
               <ul className="space-y-3 mb-8 flex-1">
                 {tier.features.map(([cs, en]) => (
                   <li key={cs} className="text-sm text-neutral-300 flex gap-2">

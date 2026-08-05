@@ -70,9 +70,16 @@ export async function loginViaStorage(page, request, userId) {
   expect(meRes.ok(), 'GET /api/me s čerstvým tokenem by mělo uspět').toBeTruthy()
   const user = await meRes.json()
 
+  // Appka teď defaultně nabíhá v angličtině (LanguageContext.jsx) — sada je ale psaná proti
+  // českým textům, takže přihlášení natvrdo připíná bg_lang na 'cs' (jen pokud ještě není
+  // nastavený — addInitScript se spouští znovu při každém reloadu/navigaci, takže bezpodmínečné
+  // setItem by přepisovalo i.spec.js přepnutí zpátky na 'cs' po jeho vlastním reloadu).
   await page.addInitScript(({ token: t, user: u }) => {
     window.localStorage.setItem('bg_token', t)
     window.localStorage.setItem('bg_user', u)
+    if (!window.localStorage.getItem('bg_lang')) {
+      window.localStorage.setItem('bg_lang', 'cs')
+    }
   }, { token, user: JSON.stringify(user) })
 
   await page.goto(user.role === 'trainer' ? '/trainer/calendar' : '/client')

@@ -857,7 +857,7 @@ function BillingTab({ clientId }) {
             <div className="flex items-center justify-between mb-3">
               <div className="font-semibold">
                 {s.plan_name} — {s.price_kc} Kč / {s.billing_period === 'monthly' ? t('měsíc', 'month') : t('jednorázově', 'one-time')}
-                {s.tier && <span className="ml-2 text-xs text-blood-500 uppercase tracking-wide align-middle">{s.tier}</span>}
+                {s.tier && <span className={`ml-2 text-xs uppercase tracking-wide align-middle ${s.tier === 'Elite' ? 'text-amber-400' : 'text-blood-500'}`}>{s.tier}</span>}
               </div>
               <span className={`text-xs uppercase tracking-wide px-2 py-1 rounded-md ${s.status === 'active' ? 'text-blood-500 bg-blood-900/20' : 'text-neutral-500 bg-neutral-800'}`}>
                 {statusLabel[s.status] ?? s.status}

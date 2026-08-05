@@ -721,6 +721,12 @@ function initSchema(PDO $pdo, array $config): void
 
     $pdo->exec('PRAGMA user_version = 12');
     }
+
+    if ($schemaVersion < 13) {
+    consolidateSubscriptionTiers($pdo);
+
+    $pdo->exec('PRAGMA user_version = 13');
+    }
 }
 
 function fetchOne(PDO $pdo, string $sql, array $params = []): ?array
@@ -1155,9 +1161,10 @@ function seedPortalDemoData(PDO $pdo): void
 // kostra k vyplnění (viz project_bloodandguts_david_feedback v poznámkách) — placeholder
 // texty a example.com odkazy, stejný vzor jako seedPortalDemoData.
 // Placeholder tiery/služby podle čísel na Landing.jsx (TIERS konstanta) — jen kostra k
-// přejmenování, David finální náplň/ceny 3 variant ještě nedodal (viz CLAUDE.md). Služby
-// jsou "zploštělé" z Landing.jsx's "Vše ze Základu"/"Vše z Pokročilého" dědičnosti do
-// konkrétních položek, ať je jde jednotlivě filtrovat na /trainer/clients.
+// přejmenování. Zjednodušeno na 2 tiery (Profi/Elite) na žádost uživatele 2026-08-05, viz
+// consolidateSubscriptionTiers() níže pro migraci databází, kde už doběhl starý 3-tierový
+// seed. Služby jsou "zploštělé" z Landing.jsx's dědičnosti do konkrétních položek, ať je jde
+// jednotlivě filtrovat na /trainer/clients.
 function seedSubscriptionTiers(PDO $pdo): void
 {
     $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
@@ -1182,9 +1189,8 @@ function seedSubscriptionTiers(PDO $pdo): void
     }
 
     $tiers = [
-        ['Základ', 'Basic', 990, 1, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu']],
-        ['Pokročilý', 'Advanced', 1690, 2, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku']],
-        ['Elite', 'Elite', 2690, 3, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku', 'Přímá zpětná vazba od Davida', 'Prioritní úpravy plánu', 'Konzultace 1x měsíčně']],
+        ['Profi', 'Pro', 1500, 1, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku']],
+        ['Elite', 'Elite', 3000, 2, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku', 'Přímá zpětná vazba od Davida', 'Prioritní úpravy plánu', 'Konzultace 1x měsíčně']],
     ];
     foreach ($tiers as [$name, $nameEn, $priceKc, $orderNum, $tierServices]) {
         $existing = fetchOne($pdo, "SELECT id FROM subscription_tiers WHERE trainer_id=? AND name=?", [$trainerId, $name]);
@@ -1197,7 +1203,7 @@ function seedSubscriptionTiers(PDO $pdo): void
     }
 }
 
-// Rozdělí portálové klienty rovnoměrně mezi 3 seedované tiery (round-robin podle id) — na
+// Rozdělí portálové klienty rovnoměrně mezi seedované tiery (round-robin podle id) — na
 // žádost uživatele 2026-08-03, protože bez toho byl Tier/Služba filtr na /trainer/clients
 // technicky funkční, ale prakticky prázdný (žádný demo klient neměl předplatné). Idempotentní
 // per klient: kdo už má JAKÉKOLI předplatné (reálné i dřív naseedované), přeskočí se — nikdy
@@ -1222,6 +1228,57 @@ function seedPortalClientTiers(PDO $pdo): void
         ]);
         $i++;
     }
+}
+
+// Nabídka zjednodušena z 3 tierů (Základ/Pokročilý/Elite, 990/1690/2690 Kč) na 2
+// (Profi/Elite, 1500/3000 Kč) na žádost uživatele 2026-08-05 — viz Landing.jsx TIERS a
+// seedSubscriptionTiers() výš. Databáze, kde už doběhl starý gate 8 seed (production i
+// synced test), mají v subscription_tiers natvrdo 3 řádky a existující subscriptions na ně
+// odkazují — samotná změna seedSubscriptionTiers() by na ně nesáhla (spouští se jen jednou).
+// Tahle migrace přejmenuje katalogový řádek "Pokročilý" na "Profi" (jeho servisní výbava už
+// odpovídala požadovanému Profi feature setu), přeceněné "Elite" nechá na místě, a smaže
+// "Základ" — subscriptions, které na "Základ" odkazovaly, přepojí na "Profi" a přeceněné.
+// Idempotentní: pokud "Pokročilý"/"Základ" už nejsou (proběhlo dřív, nebo jde o čerstvě
+// seedovanou DB), nedělá nic.
+function consolidateSubscriptionTiers(PDO $pdo): void
+{
+    $trainer = fetchOne($pdo, "SELECT id FROM users WHERE role='trainer' LIMIT 1");
+    if (!$trainer) return;
+    $trainerId = (int)$trainer['id'];
+
+    $zaklad = fetchOne($pdo, "SELECT id FROM subscription_tiers WHERE trainer_id=? AND name='Základ'", [$trainerId]);
+    $pokrocily = fetchOne($pdo, "SELECT id FROM subscription_tiers WHERE trainer_id=? AND name='Pokročilý'", [$trainerId]);
+    $elite = fetchOne($pdo, "SELECT id FROM subscription_tiers WHERE trainer_id=? AND name='Elite'", [$trainerId]);
+
+    if ($pokrocily) {
+        $profiId = (int)$pokrocily['id'];
+        $pdo->prepare("UPDATE subscription_tiers SET name='Profi', name_en='Pro', price_kc=1500, order_num=1 WHERE id=?")
+            ->execute([$profiId]);
+        $pdo->prepare("UPDATE subscriptions SET tier='Profi', plan_name='Profi', price_kc=1500 WHERE tier_id=?")
+            ->execute([$profiId]);
+    } else {
+        $existingProfi = fetchOne($pdo, "SELECT id FROM subscription_tiers WHERE trainer_id=? AND name='Profi'", [$trainerId]);
+        $profiId = $existingProfi ? (int)$existingProfi['id'] : insertRow($pdo, 'subscription_tiers', [
+            'trainer_id' => $trainerId, 'name' => 'Profi', 'name_en' => 'Pro', 'price_kc' => 1500, 'order_num' => 1,
+        ]);
+    }
+
+    if ($elite) {
+        $eliteId = (int)$elite['id'];
+        $pdo->prepare("UPDATE subscription_tiers SET price_kc=3000, order_num=2 WHERE id=?")->execute([$eliteId]);
+        $pdo->prepare("UPDATE subscriptions SET price_kc=3000 WHERE tier_id=?")->execute([$eliteId]);
+    }
+
+    if ($zaklad) {
+        $zakladId = (int)$zaklad['id'];
+        $pdo->prepare("UPDATE subscriptions SET tier_id=?, tier='Profi', plan_name='Profi', price_kc=1500 WHERE tier_id=?")
+            ->execute([$profiId, $zakladId]);
+        $pdo->prepare("DELETE FROM subscription_tiers WHERE id=?")->execute([$zakladId]);
+    }
+
+    // Legacy předplatná bez tier_id (volný text z doby před gate 8) — dohnat na stejné jméno/cenu.
+    $pdo->prepare("UPDATE subscriptions SET tier='Profi', plan_name='Profi', price_kc=1500 WHERE tier_id IS NULL AND tier IN ('Základ','Pokročilý')")->execute();
+    $pdo->prepare("UPDATE subscriptions SET price_kc=3000 WHERE tier_id IS NULL AND tier='Elite'")->execute();
 }
 
 // Placeholder merch produkty — bez fotek (žádné k dispozici), jasně jen kostra pro Davida

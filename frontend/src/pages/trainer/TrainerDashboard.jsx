@@ -18,6 +18,14 @@ function parseDateVal(v) {
   return new Date(iso).getTime()
 }
 
+// Vizuálně odliší Elite od ostatních tierů (zlatá vs. stávající červená) — tier je volný
+// text (subscription_tiers.name, viz Tiers.jsx), takže se rozlišuje podle jména, ne podle
+// nějakého pevného tier ID/enum.
+function tierBadgeClass(tierName) {
+  if (tierName === 'Elite') return 'text-amber-400 border-amber-700'
+  return 'text-blood-400 border-blood-800'
+}
+
 // Sloupce tabulky na /trainer/clients — key musí odpovídat poli z GET /clients (viz
 // index.php), portalOnly skryje sloupec, když je aktivní filtr "Osobní".
 // Krátké labely — "Poslední" prefix vynechán u všech (je zřejmý z kontextu sloupce), ať se
@@ -317,7 +325,7 @@ function ClientTable({ clients, t, portal, sort, onSort }) {
                       {c.display_name}
                     </Link>
                   ) : col.key === 'current_price_kc' ? (
-                    <span className="text-xs uppercase tracking-wide text-blood-400 border border-blood-800 rounded px-1.5 py-0.5">
+                    <span className={`text-xs uppercase tracking-wide border rounded px-1.5 py-0.5 ${tierBadgeClass(c.current_tier)}`}>
                       {c.current_tier || (c.current_price_kc ? `${c.current_price_kc} Kč` : t('Portál', 'Portal'))}
                     </span>
                   ) : (

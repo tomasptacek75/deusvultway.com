@@ -4,7 +4,7 @@ credentials/
 node_modules/
 php-forpsi/src/config.php
 php-forpsi/data/
-_ftp_credentials.py
+_ftp_credentials*.py
 dist/
 __pycache__/
 

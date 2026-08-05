@@ -2175,11 +2175,16 @@ if ($method === 'DELETE' && count($seg) === 3 && $seg[0] === 'diary' && $seg[1] 
 if ($method === 'GET' && $path === '/diary/next-workout') {
     $auth = requireRole($config, 'diary');
     $userId = (int)$auth['user_id'];
+    $note = trim((string)($_GET['note'] ?? ''));
     $user = fetchOne($pdo, "SELECT * FROM users WHERE id=?", [$userId]);
     $lastEntry = fetchOne($pdo, "SELECT MAX(recorded_at) AS d FROM diary_entries WHERE user_id=?", [$userId]);
     $fresh = fetchOne($pdo, "SELECT * FROM diary_suggestions WHERE user_id=? ORDER BY created_at DESC LIMIT 1", [$userId]);
 
-    $stillFresh = $fresh
+    // Poznámka je kontext jen pro tohle jedno vygenerování (bolest, zranění, "chci dnes"...),
+    // ne trvalý stav — požadavek s poznámkou vždy přegeneruje, a jeho výsledek se navíc nikdy
+    // nebere jako "stále čerstvý" pro pozdější požadavek BEZ poznámky (`empty($fresh['note'])`),
+    // ať se stará poznámka netahá do budoucích návrhů, kde už neplatí.
+    $stillFresh = $note === '' && $fresh && empty($fresh['note'])
         && (!$lastEntry['d'] || $fresh['created_at'] >= $lastEntry['d'])
         && strtotime($fresh['created_at']) > time() - 12 * 3600;
     if ($stillFresh) {
@@ -2191,7 +2196,7 @@ if ($method === 'GET' && $path === '/diary/next-workout') {
         ORDER BY de.recorded_at DESC LIMIT 200", [$userId]);
 
     try {
-        $suggestion = claudeSuggestNextWorkout($config, $user['diary_goal'] ?? 'mix', $history);
+        $suggestion = claudeSuggestNextWorkout($config, $user['diary_goal'] ?? 'mix', $history, $note ?: null);
     } catch (\Throwable $e) {
         logError('diary/next-workout selhalo: ' . $e->getMessage());
         jsonResponse(['detail' => 'Návrh se nepodařilo vygenerovat, zkus to prosím znovu.'], 502);
@@ -2200,6 +2205,7 @@ if ($method === 'GET' && $path === '/diary/next-workout') {
     insertRow($pdo, 'diary_suggestions', [
         'user_id' => $userId, 'goal_snapshot' => $user['diary_goal'] ?? null,
         'suggestion_json' => json_encode($suggestion, JSON_UNESCAPED_UNICODE), 'based_on_entry_count' => count($history),
+        'note' => $note ?: null,
     ]);
     jsonResponse($suggestion);
 }

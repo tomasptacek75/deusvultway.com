@@ -708,6 +708,17 @@ function initSchema(PDO $pdo, array $config): void
 
     $pdo->exec('PRAGMA user_version = 11');
     }
+
+    if ($schemaVersion < 12) {
+    // Volitelná poznámka ke konkrétnímu vygenerování návrhu dalšího tréninku ("bolí mě
+    // nohy", "chci jít dnes", zranění...) — appka ji pošle AI jako dodatečný kontext.
+    // Poznámkou ovlivněný návrh se nikdy nebere jako "stále čerstvý" cache pro pozdější
+    // požadavek BEZ poznámky (viz GET /diary/next-workout), aby se stará poznámka
+    // netahala do budoucích návrhů, kde už neplatí.
+    try { $pdo->exec("ALTER TABLE diary_suggestions ADD COLUMN note TEXT"); } catch (\Exception) {}
+
+    $pdo->exec('PRAGMA user_version = 12');
+    }
 }
 
 function fetchOne(PDO $pdo, string $sql, array $params = []): ?array

@@ -177,7 +177,7 @@ function claudeStructureWorkout(array $config, string $transcript, array $knownE
 
 // Navrhne další trénink podle cíle uživatele (síla/objem/mix) a jeho zalogované historie.
 // $history je pole řádků [recorded_at, exercise_name, set_number, reps, weight_kg].
-function claudeSuggestNextWorkout(array $config, string $goal, array $history): array
+function claudeSuggestNextWorkout(array $config, string $goal, array $history, ?string $note = null): array
 {
     $schema = [
         'type' => 'object',
@@ -207,6 +207,14 @@ function claudeSuggestNextWorkout(array $config, string $goal, array $history): 
     $system = 'Jsi zkušený silový trenér. Na základě zalogované historie tréninků a cíle uživatele navrhni '
         . "další trénink. Cíl uživatele: {$goalLabel}. Řiď se rozumnou progresí (postupné navyšování váhy/objemu) "
         . 'a rozumným rozložením partií vzhledem k tomu, co bylo cvičeno naposledy. Odpovídej v češtině.';
+    if ($note) {
+        // Jednorázová poznámka k aktuálnímu stavu (bolest, zranění, únava, "chci jít dnes"...),
+        // ne trvalá součást cíle — má přednost před obvyklou progresí (např. vynechat/nahradit
+        // cvik na bolavou partii, navrhnout lehčí trénink, zohlednit časový tlak).
+        $system .= " Uživatel navíc uvedl poznámku k tomu, jak se dnes cítí nebo co je potřeba zohlednit: "
+            . "\"{$note}\". Tuhle poznámku zohledni při návrhu přednostně před obvyklou progresí "
+            . '(např. vynech/nahraď cvik na bolavou/zraněnou partii, uprav intenzitu, zohledni časové omezení).';
+    }
     $resp = anthropicMessages($config, [
         'model' => 'claude-sonnet-5',
         // Vyšší než u claudeStructureWorkout — sonnet-5 před textovou odpovědí typicky
@@ -215,7 +223,7 @@ function claudeSuggestNextWorkout(array $config, string $goal, array $history): 
         'max_tokens' => 4000,
         'system' => $system,
         'output_config' => ['format' => ['type' => 'json_schema', 'schema' => $schema]],
-        'messages' => [['role' => 'user', 'content' => json_encode(['goal' => $goal, 'history' => $history], JSON_UNESCAPED_UNICODE)]],
+        'messages' => [['role' => 'user', 'content' => json_encode(['goal' => $goal, 'history' => $history, 'note' => $note], JSON_UNESCAPED_UNICODE)]],
     ]);
     $parsed = json_decode(anthropicText($resp) ?: '{}', true);
     return is_array($parsed) ? $parsed : [];

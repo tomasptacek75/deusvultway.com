@@ -711,10 +711,12 @@ function initSchema(PDO $pdo, array $config): void
 
     if ($schemaVersion < 12) {
     // Volitelná poznámka ke konkrétnímu vygenerování návrhu dalšího tréninku ("bolí mě
-    // nohy", "chci jít dnes", zranění...) — appka ji pošle AI jako dodatečný kontext.
-    // Poznámkou ovlivněný návrh se nikdy nebere jako "stále čerstvý" cache pro pozdější
-    // požadavek BEZ poznámky (viz GET /diary/next-workout), aby se stará poznámka
-    // netahala do budoucích návrhů, kde už neplatí.
+    // nohy", "chci jít dnes", zranění...) — appka ji pošle AI jako dodatečný kontext a uloží
+    // si, čeho se poslední vygenerování týkalo. Zadání NOVÉ poznámky vždy vynutí čerstvé
+    // vygenerování (viz GET /diary/next-workout) — samotné uložené `note` už ale od
+    // 2026-08-05 nijak neovlivňuje, jestli se výsledek bere jako "stále platný" pro další
+    // obyčejné načtení (dřív ano, což v praxi znamenalo opakované pomalé/nespolehlivé volání
+    // AI po každém jediném použití poznámky).
     try { $pdo->exec("ALTER TABLE diary_suggestions ADD COLUMN note TEXT"); } catch (\Exception) {}
 
     $pdo->exec('PRAGMA user_version = 12');

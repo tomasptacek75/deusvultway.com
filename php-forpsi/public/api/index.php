@@ -2180,19 +2180,20 @@ if ($method === 'GET' && $path === '/diary/next-workout') {
     $user = fetchOne($pdo, "SELECT * FROM users WHERE id=?", [$userId]);
     $fresh = fetchOne($pdo, "SELECT * FROM diary_suggestions WHERE user_id=? ORDER BY created_at DESC LIMIT 1", [$userId]);
 
-    // Návrh zůstává stejný — i po zalogování některého z navržených cviků — dokud uživatel sám
-    // neklikne na přepočítání (refresh=1) nebo nezadá poznámku. Dřív se přegeneroval při
-    // každém návratu na stránku, jakmile přibyl nový záznam v historii, takže zmizely i
-    // ostatní navržené cviky, které uživatel ještě nestihl udělat. Poznámka je navíc kontext
-    // jen pro tohle jedno vygenerování (bolest, zranění, "chci dnes"...), ne trvalý stav —
-    // požadavek s poznámkou vždy přegeneruje, a jeho výsledek se nikdy nebere jako "stále
-    // platný" pro pozdější požadavek BEZ poznámky (`empty($fresh['note'])`).
+    // Návrh zůstává stejný — i po zalogování některého z navržených cviků, i když byl
+    // naposledy vygenerován s poznámkou — dokud uživatel sám neklikne na přepočítání
+    // (refresh=1) nebo nezadá NOVOU poznámku (ta vždy vynutí čerstvé vygenerování, viz
+    // `$note === ''` níže — netýká se toho, co je uložené, jen aktuálního požadavku).
+    // Dřív se uložený návrh s poznámkou nikdy nebral jako "platný" pro další obyčejné
+    // načtení — v praxi to znamenalo, že po jediném použití poznámky appka při KAŽDÉM
+    // dalším návratu na stránku znovu volala AI (pomalé, na mobilu/slabším připojení
+    // náchylné k výpadku) místo aby prostě ukázala to, co už jednou vygenerovala.
     // Kontrola tvaru ($freshDecoded['suggested_exercises']) je nutná pojistka: ojedinělé
     // useknuté/nevalidní odpovědi z AI (viz claudeSuggestNextWorkout níže) se bez ní jednou
     // nacachují jako "platný" prázdný návrh a zůstanou tak navždy, dokud si uživatel nevšimne
     // prázdné stránky a sám neklikne na přepočítání — takhle se to samo opraví hned příště.
     $freshDecoded = $fresh ? json_decode($fresh['suggestion_json'], true) : null;
-    $stillFresh = $note === '' && !$forceRefresh && $fresh && empty($fresh['note'])
+    $stillFresh = $note === '' && !$forceRefresh && $fresh
         && is_array($freshDecoded) && !empty($freshDecoded['suggested_exercises']);
     if ($stillFresh) {
         jsonResponse($freshDecoded);

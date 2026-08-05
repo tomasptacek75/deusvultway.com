@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { History as HistoryIcon, ChevronDown, ChevronUp, Trash2, Check, Pencil, Calendar, Clock, NotebookPen } from 'lucide-react'
 import { apiClient } from '../../api/client'
@@ -19,10 +19,16 @@ export default function DiaryHistory() {
   useEffect(load, [])
 
   // Odkaz z Přehledu (Poslední záznamy) míří sem s ?entry=ID — rovnou ho rozbalíme a
-  // odscrollujeme na něj, ať se k němu uživatel nemusí ručně proklikávat seznamem.
+  // odscrollujeme na něj, ať se k němu uživatel nemusí ručně proklikávat seznamem. scrolledRef
+  // zajistí, že se to stane jen jednou po načtení — bez něj se efekt kvůli závislosti na
+  // `entries` spouštěl znovu při KAŽDÉ úpravě (psaní opakování/váhy, mazání série), protože ty
+  // volají setEntries a mění referenci pole; výsledkem bylo, že appka na mobilu při každém
+  // písmenku/mazání odscrollovala zpátky na začátek editovaného záznamu.
+  const scrolledToEntryRef = useRef(false)
   useEffect(() => {
     const entryId = Number(searchParams.get('entry'))
-    if (!entryId || !entries) return
+    if (!entryId || !entries || scrolledToEntryRef.current) return
+    scrolledToEntryRef.current = true
     setExpanded(entryId)
     const el = document.getElementById(`diary-entry-${entryId}`)
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)

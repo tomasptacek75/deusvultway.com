@@ -2187,9 +2187,15 @@ if ($method === 'GET' && $path === '/diary/next-workout') {
     // jen pro tohle jedno vygenerování (bolest, zranění, "chci dnes"...), ne trvalý stav —
     // požadavek s poznámkou vždy přegeneruje, a jeho výsledek se nikdy nebere jako "stále
     // platný" pro pozdější požadavek BEZ poznámky (`empty($fresh['note'])`).
-    $stillFresh = $note === '' && !$forceRefresh && $fresh && empty($fresh['note']);
+    // Kontrola tvaru ($freshDecoded['suggested_exercises']) je nutná pojistka: ojedinělé
+    // useknuté/nevalidní odpovědi z AI (viz claudeSuggestNextWorkout níže) se bez ní jednou
+    // nacachují jako "platný" prázdný návrh a zůstanou tak navždy, dokud si uživatel nevšimne
+    // prázdné stránky a sám neklikne na přepočítání — takhle se to samo opraví hned příště.
+    $freshDecoded = $fresh ? json_decode($fresh['suggestion_json'], true) : null;
+    $stillFresh = $note === '' && !$forceRefresh && $fresh && empty($fresh['note'])
+        && is_array($freshDecoded) && !empty($freshDecoded['suggested_exercises']);
     if ($stillFresh) {
-        jsonResponse(json_decode($fresh['suggestion_json'], true));
+        jsonResponse($freshDecoded);
     }
 
     $history = fetchAll($pdo, "SELECT de.recorded_at, ds.exercise_name, ds.set_number, ds.reps, ds.weight_kg
@@ -2198,6 +2204,9 @@ if ($method === 'GET' && $path === '/diary/next-workout') {
 
     try {
         $suggestion = claudeSuggestNextWorkout($config, $user['diary_goal'] ?? 'mix', $history, $note ?: null);
+        if (empty($suggestion['suggested_exercises'])) {
+            throw new \RuntimeException('AI vrátila prázdný/nevalidní návrh');
+        }
     } catch (\Throwable $e) {
         logError('diary/next-workout selhalo: ' . $e->getMessage());
         jsonResponse(['detail' => 'Návrh se nepodařilo vygenerovat, zkus to prosím znovu.'], 502);
@@ -2234,6 +2243,9 @@ if ($method === 'POST' && $path === '/diary/next-workout/replace-exercise') {
 
     try {
         $replacement = claudeReplaceExercise($config, $user['diary_goal'] ?? 'mix', $history, $otherExercises, $fresh['note'] ?: null);
+        if (empty($replacement['name'])) {
+            throw new \RuntimeException('AI vrátila prázdný/nevalidní náhradní cvik');
+        }
     } catch (\Throwable $e) {
         logError('diary/next-workout/replace-exercise selhalo: ' . $e->getMessage());
         jsonResponse(['detail' => 'Náhradní cvik se nepodařilo vygenerovat, zkus to prosím znovu.'], 502);

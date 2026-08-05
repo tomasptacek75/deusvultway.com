@@ -9,6 +9,10 @@ $allowedOrigins = [
     'https://www.bloodandguts.cz',
     'https://test.bloodandguts.cz',
     'https://muj.bloodandguts.cz',
+    // Brand rename cíl (Blood & Guts → Deus Vult Way) — migrace hlavní appky na deusvultway.com
+    // 2026-08-05, bloodandguts.cz běží dál souběžně, dokud uživatel neřekne, že se má vypnout.
+    'https://deusvultway.com',
+    'https://www.deusvultway.com',
 ];
 $reqOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($reqOrigin, $allowedOrigins, true)) {

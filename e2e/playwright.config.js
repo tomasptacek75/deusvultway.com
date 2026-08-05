@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 import { BASE_URL } from './helpers/baseUrl.js'
 
-// Proti test.bloodandguts.cz běžíme jako gate před produkčním deployem (viz
+// Proti test.deusvultway.com běžíme jako gate před produkčním deployem (viz
 // deploy_gated.py v rootu repa a CLAUDE.md). Lze přepsat na lokální dev server
 // přes E2E_BASE_URL, např. při ladění testu ještě před nasazením na test subdoménu:
 //   E2E_BASE_URL=http://localhost:5310 npx playwright test

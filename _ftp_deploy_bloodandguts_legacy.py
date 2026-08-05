@@ -1,24 +1,12 @@
 """
-Nahraje BloodAndGuts appku na deusvultway.com přes FTP: frontend build + PHP api
-(php-forpsi/public → /www) a PHP zdrojový kód (php-forpsi/src → /www/src, chráněno .htaccess
-"Require all denied"). Vlastní Forpsi hosting účet (jiný login než _ftp_credentials.py pro
-bloodandguts.cz, i když stejný FTP server ftpx.forpsi.com) — viz
-credentials/hosting_deusvultway.md a project_bloodandguts_domain_migration memory.
+Nahraje BloodAndGuts POC na Forpsi hosting přes FTP: frontend build + PHP api (php-forpsi/public
+→ /www) a PHP zdrojový kód (php-forpsi/src → /www/src, chráněno .htaccess "Require all denied").
 
-Tohle je migrace HLAVNÍ trenér/klient appky na novou doménu (brand rename Blood & Guts →
-Deus Vult Way) — deník (muj.bloodandguts.cz) na tuhle doménu nemigruje, jde samostatně jako
-vlastní projekt na mojecviko.amperit.cz.
+Použití: nejdřív `npm run build` ve frontend/ (Vite builduje přímo do php-forpsi/public),
+pak `python _ftp_deploy.py`.
 
-Použití: nejdřív `npm run build` ve frontend/ (stejný build jako pro bloodandguts.cz/test —
-VITE_API_URL je relativní /api), pak `python _ftp_deploy_deusvultway.py`.
-
-Nahrává config.php stejně jako _ftp_deploy.py (produkční bloodandguts.cz) — záměrně STEJNÝ
-config (jwt_secret, API klíče, SMTP), aby případně migrovaná data / už vydané JWT tokeny dál
-fungovaly. Pokud by měl mít deusvultway.com někdy vlastní jwt_secret nebo jiné SMTP nastavení,
-je to samostatné rozhodnutí — tenhle skript to sám od sebe nemění.
-
-Nikdy nenahrává php-forpsi/data/*.db (databáze se sama vytvoří a naseeduje při prvním
-requestu, pokud se nepřenese ručně jako součást migrace dat) — jen data/.htaccess.
+Nikdy nenahrává php-forpsi/data/*.db (produkční SQLite databáze se sama vytvoří a naseeduje
+při prvním requestu) — jen data/.htaccess, aby složka nebyla přístupná přímo přes web.
 """
 import ftplib
 import os
@@ -27,7 +15,7 @@ import time
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-from _ftp_credentials_deusvultway import FTP_HOST, FTP_USER, FTP_PASS
+from _ftp_credentials_bloodandguts_legacy import FTP_HOST, FTP_USER, FTP_PASS
 
 LOCAL_PUBLIC = "php-forpsi/public"
 LOCAL_SRC = "php-forpsi/src"
@@ -70,8 +58,12 @@ def upload_dir(ftp, local_dir, remote_dir, skip_files=None):
     return uploaded
 
 
-# Stejný důvod jako v _ftp_deploy.py — Vite emptyOutDir:false nechává staré hashované
-# JS/CSS ležet lokálně, takže bez tohohle zůstávají navždy i na vzdáleném cíli.
+# Vite builds with emptyOutDir:false (assets/ sits inside php-forpsi/public alongside api/,
+# which emptyOutDir would wipe) — so old content-hashed JS/CSS never get removed locally on
+# their own, and upload_dir() only ever adds/overwrites, never deletes. Without this, every
+# stale local file (and every deploy that ever uploaded one) stays on the remote forever.
+# frontend/scripts/clean-stale-assets.js prunes the local copy after every build; this mirrors
+# that onto the remote so old deploys' leftovers actually go away too.
 def prune_remote_assets(ftp, remote_dir, local_dir):
     local_files = set(os.listdir(local_dir))
     try:
@@ -118,7 +110,7 @@ def main():
     count += 1
 
     ftp.quit()
-    p(f"\nHotovo — nahráno {count} souborů na deusvultway.com za {time.time() - t0:.1f}s.")
+    p(f"\nHotovo — nahráno {count} souborů za {time.time() - t0:.1f}s.")
 
 
 if __name__ == '__main__':

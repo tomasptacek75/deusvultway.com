@@ -69,7 +69,7 @@ test.describe('Knihovna obsahu — viditelnost pro všechny klienty, hide i trva
     expect(stillExists, 'skrytá položka musí v datech dál existovat').toBeTruthy()
     expect(stillExists.active).toBe(0)
 
-    // Úklid — smysl testu byl ověřit hide, ne nechat po sobě smetí na test.bloodandguts.cz.
+    // Úklid — smysl testu byl ověřit hide, ne nechat po sobě smetí na test.deusvultway.com.
     const sectionAfterHide = afterHide.find((s) => s.title === sectionTitle)
     await request.delete(`/api/content-sections/${sectionAfterHide.id}`, { headers })
   })

@@ -34,7 +34,7 @@ import time
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-from _ftp_credentials import FTP_HOST, FTP_USER, FTP_PASS
+from _ftp_credentials_bloodandguts_legacy import FTP_HOST, FTP_USER, FTP_PASS
 
 LOCAL_PUBLIC = "php-forpsi/public"
 LOCAL_SRC = "php-forpsi/src"

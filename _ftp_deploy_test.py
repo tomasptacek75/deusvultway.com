@@ -1,11 +1,11 @@
 """
-Nahraje BloodAndGuts na TEST subdoménu test.bloodandguts.cz přes FTP: frontend build + PHP api
+Nahraje appku na TEST subdoménu test.deusvultway.com přes FTP: frontend build + PHP api
 (php-forpsi/public → /subdoms/test) a PHP zdrojový kód (php-forpsi/src → /subdoms/test/src,
-chráněno .htaccess "Require all denied"). Stejný FTP účet jako produkce (Forpsi subdoména už
-zřízená a DNS resolvuje), jen jiná vzdálená cesta — vzor viz ../Kamata.cz/_ftp_deploy_test.py.
+chráněno .htaccess "Require all denied"). Stejný FTP účet jako produkce (deusvultway.com
+subdoména zřízená 2026-08-05), jen jiná vzdálená cesta.
 
-Test má vlastní SQLite databázi (vznikne a naseeduje se sama při prvním requestu, stejně jako
-produkční) — nikdy nesdílí data s /www.
+Test má vlastní SQLite databázi — nikdy nesdílí data s /www. `deploy_gated.py` ji před každým
+nasazením přepíše čerstvou kopií produkčních dat (viz _sync_test_db_from_prod.py).
 
 Použití: nejdřív `npm run build` ve frontend/ (Vite builduje přímo do php-forpsi/public — stejný
 build slouží produkci i testu, protože VITE_API_URL je relativní /api),
@@ -115,7 +115,7 @@ def main():
     count += 1
 
     ftp.quit()
-    p(f"\nHotovo — nahráno {count} souborů na test.bloodandguts.cz za {time.time() - t0:.1f}s.")
+    p(f"\nHotovo — nahráno {count} souborů na test.deusvultway.com za {time.time() - t0:.1f}s.")
 
 
 if __name__ == '__main__':

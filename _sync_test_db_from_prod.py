@@ -1,5 +1,5 @@
 """
-Přepíše databázi na test.bloodandguts.cz aktuální kopií produkční databáze.
+Přepíše databázi na test.deusvultway.com aktuální kopií produkční databáze.
 
 Proč tohle existuje: dokud appka nemá reálné portálové klienty a nezačalo se "opravdu"
 testovat s nimi, nemá smysl, aby test měl vlastní, dlouhodobě se rozjíždějící sadu dat —
@@ -52,7 +52,7 @@ def main():
     ftp.storbinary(f"STOR {TEST_DB}", buf)
 
     ftp.quit()
-    p(f"\nHotovo za {time.time() - t0:.1f}s — test.bloodandguts.cz teď běží na kopii produkčních dat.")
+    p(f"\nHotovo za {time.time() - t0:.1f}s — test.deusvultway.com teď běží na kopii produkčních dat.")
 
 
 if __name__ == '__main__':

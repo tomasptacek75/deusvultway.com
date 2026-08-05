@@ -2,17 +2,15 @@
 declare(strict_types=1);
 error_reporting(E_ALL);
 
+// Brand rename dokončen (Blood & Guts → Deus Vult Way) — bloodandguts.cz/muj.bloodandguts.cz
+// hosting uživatel 2026-08-05 vědomě maže (appka běží dál na deusvultway.com, deník na
+// mojecviko.amperit.cz), proto tu staré origins už nejsou.
 $allowedOrigins = [
     'http://localhost:5310',
     'http://127.0.0.1:5310',
-    'https://bloodandguts.cz',
-    'https://www.bloodandguts.cz',
-    'https://test.bloodandguts.cz',
-    'https://muj.bloodandguts.cz',
-    // Brand rename cíl (Blood & Guts → Deus Vult Way) — migrace hlavní appky na deusvultway.com
-    // 2026-08-05, bloodandguts.cz běží dál souběžně, dokud uživatel neřekne, že se má vypnout.
     'https://deusvultway.com',
     'https://www.deusvultway.com',
+    'https://test.deusvultway.com',
 ];
 $reqOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($reqOrigin, $allowedOrigins, true)) {

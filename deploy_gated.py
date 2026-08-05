@@ -1,6 +1,6 @@
 """
-Gated deploy: build -> sync test DB z produkce -> nasazeni na test.bloodandguts.cz -> e2e sada
-(Playwright) proti testu -> teprve pri uspechu nasazeni na produkci (bloodandguts.cz).
+Gated deploy: build -> sync test DB z produkce -> nasazeni na test.deusvultway.com -> e2e sada
+(Playwright) proti testu -> teprve pri uspechu nasazeni na produkci (deusvultway.com).
 
 Proc tohle existuje: POC bezi na zive domene s realnymi (byt zatim vetsinou demo) klienty
 trenera Davida. Rucni proklikani pred kazdym nasazenim neni realne (trener na to nema cas) a
@@ -16,12 +16,12 @@ Pouziti:
 Kroky:
     1. npm run build (frontend/)                -- stejny build jde na test i produkci
     2. python _sync_test_db_from_prod.py        -- prepise testovaci DB kopii produkcni (viz tam proc)
-    3. python _ftp_deploy_test.py               -- nahraje na test.bloodandguts.cz
-    4. npm test (e2e/)                          -- Playwright proti test.bloodandguts.cz
-    5. jen pri uspechu kroku 4: python _ftp_deploy.py -- nahraje na bloodandguts.cz (produkce)
+    3. python _ftp_deploy_test.py               -- nahraje na test.deusvultway.com
+    4. npm test (e2e/)                          -- Playwright proti test.deusvultway.com
+    5. jen pri uspechu kroku 4: python _ftp_deploy.py -- nahraje na deusvultway.com (produkce)
 
 Kdyz e2e selzou, produkce se NENASADI -- zustava na predchozi (fungujici) verzi. Sestava, ktera
-neprosla, zustava nahrana na testu k rucnimu overeni/oprave (viz test.bloodandguts.cz i
+neprosla, zustava nahrana na testu k rucnimu overeni/oprave (viz test.deusvultway.com i
 e2e/playwright-report/index.html pro detail selhani).
 
 Predpoklada, ze `e2e/node_modules` uz existuje (jednorazovy setup, viz e2e/README.md):
@@ -79,7 +79,7 @@ def main():
     else:
         p("\n== 2/5 Sync testovaci DB z produkce (preskoceno --skip-db-sync) ==")
 
-    p("\n== 3/5 Nasazeni na test.bloodandguts.cz ==")
+    p("\n== 3/5 Nasazeni na test.deusvultway.com ==")
     if run([sys.executable, '_ftp_deploy_test.py']) != 0:
         p("\nNasazeni na test selhalo -- produkce se nedotkne.")
         sys.exit(1)
@@ -89,7 +89,7 @@ def main():
         p("  cd e2e && npm install && npx playwright install --with-deps chromium")
         sys.exit(1)
 
-    p("\n== 4/5 e2e testy proti test.bloodandguts.cz ==")
+    p("\n== 4/5 e2e testy proti test.deusvultway.com ==")
     # `npm test` (spousti 'playwright test' skrz package.json) na tomhle Windows setupu
     # nespolehlive resolvuje binarku playwright, kdyz se spousti pres subprocess.run z Pythonu
     # (funguje v interaktivnim shellu, ale ne takhle) -- primy zapis přes node cli.js obchazi
@@ -103,12 +103,12 @@ def main():
             sys.exit(1)
         p("--keep-going nastaveno, pokracuji na produkci navzdory selhani testu.")
 
-    p("\n== 5/5 Nasazeni na produkci (bloodandguts.cz) ==")
+    p("\n== 5/5 Nasazeni na produkci (deusvultway.com) ==")
     if run([sys.executable, '_ftp_deploy.py']) != 0:
         p("\nNasazeni na produkci selhalo.")
         sys.exit(1)
 
-    p(f"\nHotovo za {time.time() - t0:.1f}s -- test.bloodandguts.cz i bloodandguts.cz bezi na stejne, e2e-overene sestave.")
+    p(f"\nHotovo za {time.time() - t0:.1f}s -- test.deusvultway.com i deusvultway.com bezi na stejne, e2e-overene sestave.")
 
 
 if __name__ == '__main__':

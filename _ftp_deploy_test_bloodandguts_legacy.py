@@ -1,24 +1,17 @@
 """
-Nahraje BloodAndGuts appku na deusvultway.com přes FTP: frontend build + PHP api
-(php-forpsi/public → /www) a PHP zdrojový kód (php-forpsi/src → /www/src, chráněno .htaccess
-"Require all denied"). Vlastní Forpsi hosting účet (jiný login než _ftp_credentials.py pro
-bloodandguts.cz, i když stejný FTP server ftpx.forpsi.com) — viz
-credentials/hosting_deusvultway.md a project_bloodandguts_domain_migration memory.
+Nahraje BloodAndGuts na TEST subdoménu test.bloodandguts.cz přes FTP: frontend build + PHP api
+(php-forpsi/public → /subdoms/test) a PHP zdrojový kód (php-forpsi/src → /subdoms/test/src,
+chráněno .htaccess "Require all denied"). Stejný FTP účet jako produkce (Forpsi subdoména už
+zřízená a DNS resolvuje), jen jiná vzdálená cesta — vzor viz ../Kamata.cz/_ftp_deploy_test.py.
 
-Tohle je migrace HLAVNÍ trenér/klient appky na novou doménu (brand rename Blood & Guts →
-Deus Vult Way) — deník (muj.bloodandguts.cz) na tuhle doménu nemigruje, jde samostatně jako
-vlastní projekt na mojecviko.amperit.cz.
+Test má vlastní SQLite databázi (vznikne a naseeduje se sama při prvním requestu, stejně jako
+produkční) — nikdy nesdílí data s /www.
 
-Použití: nejdřív `npm run build` ve frontend/ (stejný build jako pro bloodandguts.cz/test —
-VITE_API_URL je relativní /api), pak `python _ftp_deploy_deusvultway.py`.
+Použití: nejdřív `npm run build` ve frontend/ (Vite builduje přímo do php-forpsi/public — stejný
+build slouží produkci i testu, protože VITE_API_URL je relativní /api),
+pak `python _ftp_deploy_test.py`.
 
-Nahrává config.php stejně jako _ftp_deploy.py (produkční bloodandguts.cz) — záměrně STEJNÝ
-config (jwt_secret, API klíče, SMTP), aby případně migrovaná data / už vydané JWT tokeny dál
-fungovaly. Pokud by měl mít deusvultway.com někdy vlastní jwt_secret nebo jiné SMTP nastavení,
-je to samostatné rozhodnutí — tenhle skript to sám od sebe nemění.
-
-Nikdy nenahrává php-forpsi/data/*.db (databáze se sama vytvoří a naseeduje při prvním
-requestu, pokud se nepřenese ručně jako součást migrace dat) — jen data/.htaccess.
+Nikdy nenahrává php-forpsi/data/*.db — jen data/.htaccess, aby složka nebyla přístupná přímo přes web.
 """
 import ftplib
 import os
@@ -27,12 +20,12 @@ import time
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-from _ftp_credentials import FTP_HOST, FTP_USER, FTP_PASS
+from _ftp_credentials_bloodandguts_legacy import FTP_HOST, FTP_USER, FTP_PASS
 
 LOCAL_PUBLIC = "php-forpsi/public"
 LOCAL_SRC = "php-forpsi/src"
 LOCAL_DATA_HTACCESS = "php-forpsi/data/.htaccess"
-REMOTE_ROOT = "/www"
+REMOTE_ROOT = "/subdoms/test"
 
 SRC_SKIP_FILES = {"config.example.php"}
 
@@ -70,8 +63,12 @@ def upload_dir(ftp, local_dir, remote_dir, skip_files=None):
     return uploaded
 
 
-# Stejný důvod jako v _ftp_deploy.py — Vite emptyOutDir:false nechává staré hashované
-# JS/CSS ležet lokálně, takže bez tohohle zůstávají navždy i na vzdáleném cíli.
+# Vite builds with emptyOutDir:false (assets/ sits inside php-forpsi/public alongside api/,
+# which emptyOutDir would wipe) — so old content-hashed JS/CSS never get removed locally on
+# their own, and upload_dir() only ever adds/overwrites, never deletes. Without this, every
+# stale local file (and every deploy that ever uploaded one) stays on the remote forever.
+# frontend/scripts/clean-stale-assets.js prunes the local copy after every build; this mirrors
+# that onto the remote so old deploys' leftovers actually go away too.
 def prune_remote_assets(ftp, remote_dir, local_dir):
     local_files = set(os.listdir(local_dir))
     try:
@@ -105,20 +102,20 @@ def main():
     ftp = ftplib.FTP(FTP_HOST, timeout=30)
     ftp.login(FTP_USER, FTP_PASS)
 
-    p("Nahrávám php-forpsi/public → /www …")
+    p(f"Nahrávám php-forpsi/public → {REMOTE_ROOT} …")
     count = upload_dir(ftp, LOCAL_PUBLIC, REMOTE_ROOT)
     prune_remote_assets(ftp, f"{REMOTE_ROOT}/assets", os.path.join(LOCAL_PUBLIC, 'assets'))
 
-    p("Nahrávám php-forpsi/src → /www/src …")
+    p(f"Nahrávám php-forpsi/src → {REMOTE_ROOT}/src …")
     count += upload_dir(ftp, LOCAL_SRC, f"{REMOTE_ROOT}/src", skip_files=SRC_SKIP_FILES)
 
-    p("Nahrávám data/.htaccess → /www/data/.htaccess …")
+    p(f"Nahrávám data/.htaccess → {REMOTE_ROOT}/data/.htaccess …")
     ensure_dir(ftp, f"{REMOTE_ROOT}/data")
     upload_file(ftp, LOCAL_DATA_HTACCESS, f"{REMOTE_ROOT}/data/.htaccess")
     count += 1
 
     ftp.quit()
-    p(f"\nHotovo — nahráno {count} souborů na deusvultway.com za {time.time() - t0:.1f}s.")
+    p(f"\nHotovo — nahráno {count} souborů na test.bloodandguts.cz za {time.time() - t0:.1f}s.")
 
 
 if __name__ == '__main__':

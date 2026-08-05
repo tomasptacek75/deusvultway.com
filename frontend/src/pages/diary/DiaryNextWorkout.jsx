@@ -1,13 +1,22 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Sparkles, Clock, RefreshCw } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryBackLink from '../../components/DiaryBackLink'
+import { suggestionToExercise } from '../../utils/diary'
 
 export default function DiaryNextWorkout() {
   const [suggestion, setSuggestion] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [note, setNote] = useState('')
+  const navigate = useNavigate()
+
+  // Klik na navržený cvik rovnou otevře ruční zápis s předvyplněnými sériemi/opakováními/vahou
+  // podle návrhu — jen k doladění, ne psaní od nuly.
+  function prefillFromSuggestion(ex) {
+    navigate('/diary/manual', { state: { prefillExercise: suggestionToExercise(ex) } })
+  }
 
   function load(noteOverride) {
     setLoading(true)
@@ -64,7 +73,11 @@ export default function DiaryNextWorkout() {
 
           <div className="space-y-2">
             {suggestion.suggested_exercises?.map((ex, i) => (
-              <div key={i} className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+              <button
+                key={i} onClick={() => prefillFromSuggestion(ex)}
+                className="w-full text-left rounded-lg border border-neutral-800 bg-neutral-900 p-4 hover:border-blood-700 transition-colors"
+                title="Zapsat tento cvik ručně (předvyplní se podle návrhu)"
+              >
                 <div className="flex items-baseline justify-between">
                   <span className="font-medium">{ex.name}</span>
                   <span className="text-sm text-neutral-400">
@@ -72,7 +85,7 @@ export default function DiaryNextWorkout() {
                   </span>
                 </div>
                 {ex.reason && <p className="text-xs text-neutral-500 mt-1">{ex.reason}</p>}
-              </div>
+              </button>
             ))}
           </div>
         </div>

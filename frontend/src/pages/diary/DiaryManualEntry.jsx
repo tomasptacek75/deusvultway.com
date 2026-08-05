@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { PenLine, Calendar, Clock, Check, NotebookPen } from 'lucide-react'
 import { apiClient } from '../../api/client'
 import DiaryEntryEditor from '../../components/DiaryEntryEditor'
@@ -7,10 +7,16 @@ import TimeSelect from '../../components/TimeSelect'
 import DiaryBackLink from '../../components/DiaryBackLink'
 
 export default function DiaryManualEntry() {
+  const location = useLocation()
+  // Příchod z Návrhu dalšího tréninku (klik na navržený cvik, viz DiaryNextWorkout.jsx) přinese
+  // v location.state rovnou předvyplněný cvik — jinak výchozí prázdný silový cvik jako dřív.
+  const prefillExercise = location.state?.prefillExercise
   const [recordedAt, setRecordedAt] = useState(new Date().toISOString().slice(0, 10))
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
-  const [exercises, setExercises] = useState([{ name: '', type: 'strength', sets: [{ set_number: 1, reps: null, weight_kg: null, own_weight: false, duration_min: null, distance_km: null }] }])
+  const [exercises, setExercises] = useState([
+    prefillExercise ?? { name: '', type: 'strength', sets: [{ set_number: 1, reps: null, weight_kg: null, own_weight: false, duration_min: null, distance_km: null }] },
+  ])
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)

@@ -32,6 +32,13 @@ def p(msg=''):
     print(msg, flush=True)
 
 
+def ensure_dir(ftp, remote_dir):
+    try:
+        ftp.mkd(remote_dir)
+    except ftplib.error_perm:
+        pass
+
+
 def main():
     t0 = time.time()
     p(f"Připojuji se na {FTP_HOST}…")
@@ -48,6 +55,9 @@ def main():
     p(f"  staženo {size:,} bajtů")
 
     p(f"Nahrávám jako testovací databázi {TEST_DB} …")
+    # Na čerstvě zřízené subdoméně (žádný _ftp_deploy_test.py tam ještě neběžel) data/ adresář
+    # ještě neexistuje — bez tohohle STOR spadne na "553 Can't open that file".
+    ensure_dir(ftp, TEST_DB.rsplit('/', 1)[0])
     buf.seek(0)
     ftp.storbinary(f"STOR {TEST_DB}", buf)
 

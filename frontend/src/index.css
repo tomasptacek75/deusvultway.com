@@ -2,16 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* "Old London" — freeware Old English/Textura blackletter by Typographer Mediengestaltung
-   (Dieter Steffmann), 1001Fonts "Free For Commercial Use" license. Self-hosted (not on Google
-   Fonts) because it's the closest free match to the paid "CL Antique No.31" reference the user
-   wanted for the DEUS VULT WAY wordmark — see font-gothic in tailwind.config.js. */
-@font-face {
-  font-family: 'OldLondon';
-  src: url('/fonts/old-london.ttf') format('truetype');
-  font-display: swap;
-}
-
 html, body, #root {
   height: 100%;
 }

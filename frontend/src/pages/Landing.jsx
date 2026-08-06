@@ -4,6 +4,7 @@ import { Dumbbell, Flame, Target, LineChart, Send, CheckCircle2, Mail, Phone, Cr
 import { apiClient } from '../api/client'
 import { useLanguage } from '../i18n/LanguageContext'
 import LanguageToggle from '../components/LanguageToggle'
+import Wordmark from '../components/Wordmark'
 
 const TRAINER_EMAIL = 'tyylle@seznam.cz'
 const TRAINER_PHONE = '+420 736 690 419'
@@ -44,9 +45,9 @@ export default function Landing() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-10 bg-neutral-950/95 border-b border-neutral-800 pt-[env(safe-area-inset-top)]">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-gothic text-2xl">
+          <div className="flex items-center gap-2">
             <Dumbbell className="text-blood-600" size={26} />
-            DEUS <span className="text-blood-600">VULT</span> WAY
+            <Wordmark className="h-7" />
           </div>
           <div className="flex items-center gap-3">
             <LanguageToggle />

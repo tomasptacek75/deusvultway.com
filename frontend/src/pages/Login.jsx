@@ -4,6 +4,7 @@ import { Dumbbell } from 'lucide-react'
 import { fetchPeople, demoLogin, homePath } from '../api/client'
 import { useLanguage } from '../i18n/LanguageContext'
 import LanguageToggle from '../components/LanguageToggle'
+import Wordmark from '../components/Wordmark'
 
 export default function Login() {
   const { t } = useLanguage()
@@ -32,9 +33,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4 py-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-2">
-          <Link to="/" className="flex items-center gap-2 font-gothic text-2xl hover:text-blood-400 transition-colors">
+          <Link to="/" className="flex items-center gap-2 hover:text-blood-400 transition-colors">
             <Dumbbell className="text-blood-600" size={26} />
-            DEUS <span className="text-blood-600">VULT</span> WAY
+            <Wordmark className="h-7" />
           </Link>
           <LanguageToggle />
         </div>

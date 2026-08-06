@@ -5,6 +5,7 @@ import { getUser, logout, homePath } from '../api/client'
 import { useLanguage } from '../i18n/LanguageContext'
 import NotificationBell from './NotificationBell'
 import LanguageToggle from './LanguageToggle'
+import Wordmark from './Wordmark'
 
 const navClass = ({ isActive }) =>
   `px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
@@ -25,9 +26,9 @@ export default function AppShell({ links, showLanguageToggle = true, showNotific
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-neutral-800 bg-neutral-950/95 sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <Link to={homePath()} className="flex items-center gap-2 font-gothic text-2xl shrink-0">
+          <Link to={homePath()} className="flex items-center gap-2 shrink-0">
             <Dumbbell className="text-blood-600" size={22} />
-            DEUS <span className="text-blood-600">VULT</span> WAY
+            <Wordmark className="h-6" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">

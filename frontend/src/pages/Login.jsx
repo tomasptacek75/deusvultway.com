@@ -35,7 +35,7 @@ export default function Login() {
         <div className="flex items-center justify-center gap-3 mb-2">
           <Link to="/" className="flex items-center gap-2 hover:text-blood-400 transition-colors">
             <Dumbbell className="text-blood-600" size={26} />
-            <Wordmark className="h-6 sm:h-7" />
+            <Wordmark className="h-5 sm:h-7" />
           </Link>
           <LanguageToggle />
         </div>

@@ -10,17 +10,22 @@
 // whatever wraps them, so e.g. Login.jsx's hover:text-blood-400 on the wrapping <Link> still
 // visibly affects DEUS/WAY on hover, same as when this was plain text. VULT stays hardcoded
 // text-blood-600 so it doesn't shift with that hover.
+//
+// heightPct is each letter's own cropped pixel height relative to the tallest letter in the
+// source image (216px, "Wa") — without it every letter stretches to fill the same box height
+// and the lowercase "eus"/"ult"/"ay" ends up as tall as the capitals, reading as if the whole
+// wordmark were capitalized instead of matching the source's actual cap-height/x-height mix.
 const LETTERS = [
-  { id: 'D', ratio: '181/214' },
-  { id: 'e', ratio: '87/140', gap: 'letter' },
-  { id: 'u1', ratio: '110/142', gap: 'letter' },
-  { id: 's', ratio: '94/141', gap: 'letter' },
-  { id: 'V', ratio: '184/213', gap: 'word', color: 'text-blood-600' },
-  { id: 'u2', ratio: '111/210', color: 'text-blood-600' },
-  { id: 'l', ratio: '61/208', gap: 'letter', color: 'text-blood-600' },
-  { id: 't', ratio: '79/179', gap: 'letter', color: 'text-blood-600' },
-  { id: 'Wa', ratio: '346/216', gap: 'word' },
-  { id: 'y', ratio: '105/188', gap: 'letter' },
+  { id: 'D', ratio: '181/214', heightPct: 99 },
+  { id: 'e', ratio: '87/140', heightPct: 65, gap: 'letter' },
+  { id: 'u1', ratio: '110/142', heightPct: 66, gap: 'letter' },
+  { id: 's', ratio: '94/141', heightPct: 65, gap: 'letter' },
+  { id: 'V', ratio: '184/213', heightPct: 99, gap: 'word', color: 'text-blood-600' },
+  { id: 'u2', ratio: '111/210', heightPct: 97, color: 'text-blood-600' },
+  { id: 'l', ratio: '61/208', heightPct: 96, gap: 'letter', color: 'text-blood-600' },
+  { id: 't', ratio: '79/179', heightPct: 83, gap: 'letter', color: 'text-blood-600' },
+  { id: 'Wa', ratio: '346/216', heightPct: 100, gap: 'word' },
+  { id: 'y', ratio: '105/188', heightPct: 87, gap: 'letter' },
 ]
 
 const GAP_CLASS = { letter: 'ml-[3px]', word: 'ml-3' }
@@ -31,8 +36,9 @@ export default function Wordmark({ className = 'h-7' }) {
       {LETTERS.map((letter) => (
         <span
           key={letter.id}
-          className={`h-full inline-block ${letter.color || ''} ${GAP_CLASS[letter.gap] || ''}`}
+          className={`inline-block ${letter.color || ''} ${GAP_CLASS[letter.gap] || ''}`}
           style={{
+            height: `${letter.heightPct}%`,
             aspectRatio: letter.ratio,
             backgroundColor: 'currentColor',
             WebkitMaskImage: `url(/wordmark/${letter.id}.png)`,

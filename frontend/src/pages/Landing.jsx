@@ -44,7 +44,7 @@ export default function Landing() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-10 bg-neutral-950/95 border-b border-neutral-800 pt-[env(safe-area-inset-top)]">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-display text-xl tracking-widest">
+          <div className="flex items-center gap-2 font-gothic text-2xl">
             <Dumbbell className="text-blood-600" size={26} />
             DEUS <span className="text-blood-600">VULT</span> WAY
           </div>

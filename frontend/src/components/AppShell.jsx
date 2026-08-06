@@ -25,7 +25,7 @@ export default function AppShell({ links, showLanguageToggle = true, showNotific
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-neutral-800 bg-neutral-950/95 sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <Link to={homePath()} className="flex items-center gap-2 font-display text-lg tracking-widest shrink-0">
+          <Link to={homePath()} className="flex items-center gap-2 font-gothic text-2xl shrink-0">
             <Dumbbell className="text-blood-600" size={22} />
             DEUS <span className="text-blood-600">VULT</span> WAY
           </Link>

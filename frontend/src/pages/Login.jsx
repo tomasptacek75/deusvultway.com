@@ -32,7 +32,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4 py-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-2">
-          <Link to="/" className="flex items-center gap-2 font-display text-xl tracking-widest hover:text-blood-400 transition-colors">
+          <Link to="/" className="flex items-center gap-2 font-gothic text-2xl hover:text-blood-400 transition-colors">
             <Dumbbell className="text-blood-600" size={26} />
             DEUS <span className="text-blood-600">VULT</span> WAY
           </Link>

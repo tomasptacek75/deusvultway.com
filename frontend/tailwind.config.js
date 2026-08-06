@@ -20,6 +20,12 @@ export default {
       fontFamily: {
         display: ['"Oswald"', 'sans-serif'],
         sans: ['"Inter"', 'sans-serif'],
+        // Blackletter wordmark font pro "DEUS VULT WAY" v hlavičkách (AppShell/Landing/Login)
+        // — CL Antique No.31 (viz zadání) je placený font z centurylibrary.com. UnifrakturMaguntia
+        // (Fraktur) byl první pokus, ale strukturálně to je jiná rodina písma (zaoblené baňky)
+        // než anglický Old English Text/Textura styl ze zadání — Old London (self-hosted, viz
+        // index.css) je nejbližší volně dostupná náhrada se stejnou kostrou písmen.
+        gothic: ['"OldLondon"', 'cursive'],
       },
     },
   },

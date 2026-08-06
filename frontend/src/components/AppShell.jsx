@@ -28,7 +28,7 @@ export default function AppShell({ links, showLanguageToggle = true, showNotific
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <Link to={homePath()} className="flex items-center gap-2 shrink-0">
             <Dumbbell className="text-blood-600" size={22} />
-            <Wordmark className="h-6" />
+            <Wordmark className="h-5 sm:h-6" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">

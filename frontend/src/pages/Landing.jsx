@@ -47,7 +47,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Dumbbell className="text-blood-600" size={26} />
-            <Wordmark className="h-7" />
+            <Wordmark className="h-6 sm:h-7" />
           </div>
           <div className="flex items-center gap-3">
             <LanguageToggle />

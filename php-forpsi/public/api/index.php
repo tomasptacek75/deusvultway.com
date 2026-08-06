@@ -1681,6 +1681,12 @@ if ($method === 'GET' && $path === '/subscription-tiers') {
         $tier['service_ids'] = array_map('intval', array_column(
             fetchAll($pdo, "SELECT service_id FROM tier_service_map WHERE tier_id=?", [(int)$tier['id']]), 'service_id'
         ));
+        // Kolik odlišných klientů má na tenhle tier aktivně navázané předplatné — frontend
+        // z toho počítá "8/10 obsazeno" a měkké varování při zakládání dalšího (viz
+        // findScheduleConflict vzor, max_clients je jen doporučení, ne tvrdý server limit).
+        $countStmt = $pdo->prepare("SELECT COUNT(DISTINCT client_id) FROM subscriptions WHERE tier_id=? AND status='active'");
+        $countStmt->execute([(int)$tier['id']]);
+        $tier['active_count'] = (int) $countStmt->fetchColumn();
     }
     unset($tier);
     jsonResponse($tiers);
@@ -1693,6 +1699,7 @@ if ($method === 'POST' && $path === '/subscription-tiers') {
     $id = insertRow($pdo, 'subscription_tiers', [
         'trainer_id' => $auth['user_id'], 'name' => $b['name'], 'name_en' => $b['name_en'] ?? null,
         'price_kc' => $b['price_kc'] ?? null, 'order_num' => $b['order_num'] ?? 0,
+        'max_clients' => $b['max_clients'] ?? null,
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM subscription_tiers WHERE id=?", [$id]), 201);
 }
@@ -1703,10 +1710,11 @@ if ($method === 'PUT' && count($seg) === 2 && $seg[0] === 'subscription-tiers') 
     $existing = fetchOne($pdo, "SELECT * FROM subscription_tiers WHERE id=? AND trainer_id=?", [$id, $auth['user_id']]);
     if (!$existing) jsonResponse(['detail' => 'Tier nenalezen'], 404);
     $b = jsonInput();
-    $pdo->prepare("UPDATE subscription_tiers SET name=?, name_en=?, price_kc=?, order_num=?, active=? WHERE id=?")->execute([
+    $pdo->prepare("UPDATE subscription_tiers SET name=?, name_en=?, price_kc=?, order_num=?, active=?, max_clients=? WHERE id=?")->execute([
         $b['name'] ?? $existing['name'], $b['name_en'] ?? $existing['name_en'],
         $b['price_kc'] ?? $existing['price_kc'], $b['order_num'] ?? $existing['order_num'],
-        isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'], $id,
+        isset($b['active']) ? (int)(bool)$b['active'] : $existing['active'],
+        array_key_exists('max_clients', $b) ? $b['max_clients'] : $existing['max_clients'], $id,
     ]);
     jsonResponse(fetchOne($pdo, "SELECT * FROM subscription_tiers WHERE id=?", [$id]));
 }

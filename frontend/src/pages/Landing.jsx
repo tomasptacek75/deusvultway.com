@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Dumbbell, Flame, Target, LineChart, Send, CheckCircle2, Mail, Phone } from 'lucide-react'
+import { Dumbbell, Flame, Target, LineChart, Send, CheckCircle2, Mail, Phone, Crown } from 'lucide-react'
 import { apiClient } from '../api/client'
 import { useLanguage } from '../i18n/LanguageContext'
 import LanguageToggle from '../components/LanguageToggle'
@@ -24,11 +24,15 @@ const TIERS = [
     name: 'Elite', nameEn: 'Elite',
     price: '3 000 Kč / měsíc', priceEn: '3,000 CZK / month',
     highlighted: true,
+    vip: true,
+    tagline: 'Uzavřený VIP klub — místo, kde se David věnuje jen hrstce lidí naplno.',
+    taglineEn: 'A closed VIP club — where David gives his full focus to just a handful of people.',
     features: [
       ['Vše z Profi', 'Everything in Pro'],
       ['Přímá zpětná vazba od Davida', 'Direct feedback from David'],
       ['Prioritní úpravy plánu', 'Priority plan adjustments'],
       ['Konzultace 1x měsíčně', 'Monthly consultation'],
+      ['Omezeno na 10 klientů', 'Limited to 10 clients'],
     ],
   },
 ]
@@ -137,25 +141,35 @@ export default function Landing() {
           {TIERS.map((tier) => (
             <div
               key={tier.name}
-              className={`rounded-xl border p-8 flex flex-col ${
-                tier.highlighted
-                  ? 'border-blood-600 bg-neutral-900 md:-translate-y-2 shadow-xl shadow-blood-900/30'
+              className={`relative rounded-xl border p-8 flex flex-col ${
+                tier.vip
+                  ? 'border-amber-500 bg-neutral-900 md:-translate-y-2 shadow-xl shadow-amber-900/20'
                   : 'border-neutral-800 bg-neutral-900/50'
               }`}
             >
-              <h3 className="text-2xl mb-1">{t(tier.name, tier.nameEn)}</h3>
-              <div className="text-3xl font-bold mb-6">{t(tier.price, tier.priceEn)}</div>
-              <ul className="space-y-3 mb-8 flex-1">
+              {tier.vip && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-amber-500 text-neutral-950 text-xs font-semibold uppercase tracking-wide px-3 py-1 rounded-full">
+                  <Crown size={12} /> {t('VIP klub', 'VIP club')}
+                </span>
+              )}
+              <h3 className={`text-2xl mb-1 ${tier.vip ? 'text-amber-400' : ''}`}>{t(tier.name, tier.nameEn)}</h3>
+              <div className="text-3xl font-bold mb-1">{t(tier.price, tier.priceEn)}</div>
+              {tier.tagline && (
+                <p className="text-xs text-amber-400/80 mb-6">{t(tier.tagline, tier.taglineEn)}</p>
+              )}
+              <ul className={`space-y-3 mb-8 flex-1 ${tier.tagline ? '' : 'mt-5'}`}>
                 {tier.features.map(([cs, en]) => (
                   <li key={cs} className="text-sm text-neutral-300 flex gap-2">
-                    <span className="text-blood-600">✓</span> {t(cs, en)}
+                    <span className={tier.vip ? 'text-amber-500' : 'text-blood-600'}>✓</span> {t(cs, en)}
                   </li>
                 ))}
               </ul>
               <a
                 href="#kontakt"
                 className={`text-center py-2.5 rounded-md font-semibold transition-colors ${
-                  tier.highlighted
+                  tier.vip
+                    ? 'bg-amber-500 hover:bg-amber-400 text-neutral-950'
+                    : tier.highlighted
                     ? 'bg-blood-700 hover:bg-blood-600'
                     : 'bg-neutral-800 hover:bg-neutral-700'
                 }`}

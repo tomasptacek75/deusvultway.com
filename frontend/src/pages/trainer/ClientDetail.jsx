@@ -819,6 +819,18 @@ function BillingTab({ clientId }) {
   async function createSub(e) {
     e.preventDefault()
     if (!subForm.plan_name || !subForm.price_kc) return
+    if (subForm.tier_id) {
+      const tier = tiers.find((tr) => String(tr.id) === String(subForm.tier_id))
+      const alreadyMember = subs.some((s) => s.status === 'active' && String(s.tier_id) === String(subForm.tier_id))
+      if (tier?.max_clients != null && tier.active_count >= tier.max_clients && !alreadyMember) {
+        const tierLabel = t(tier.name, tier.name_en || tier.name)
+        const proceed = window.confirm(t(
+          `${tierLabel} je plný (${tier.active_count}/${tier.max_clients} klientů). Přesto přidat dalšího?`,
+          `${tierLabel} is full (${tier.active_count}/${tier.max_clients} clients). Add another anyway?`
+        ))
+        if (!proceed) return
+      }
+    }
     await apiClient.post('/subscriptions', { client_id: clientId, ...subForm, tier_id: subForm.tier_id || null })
     setSubForm({ plan_name: '', price_kc: '', billing_period: 'monthly', current_period_end: '', tier_id: '' })
     load()

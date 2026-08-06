@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, ArrowRight, Dumbbell, CheckCircle2, Clock, MapPin, Download, Trophy, Sparkles } from 'lucide-react'
+import { CalendarDays, ArrowRight, Dumbbell, CheckCircle2, Clock, MapPin, Download, Trophy, Sparkles, Crown } from 'lucide-react'
 import { apiClient, getUser } from '../../api/client'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { vocative } from '../../utils/vocative'
@@ -14,6 +14,7 @@ export default function ClientDashboard() {
   const [workouts, setWorkouts] = useState([])
   const [challenge, setChallenge] = useState(null)
   const [community, setCommunity] = useState([])
+  const [isElite, setIsElite] = useState(false)
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
@@ -24,6 +25,9 @@ export default function ClientDashboard() {
       setChallenge(r.data.find((c) => c.period_month === thisMonth) || r.data[0] || null)
     })
     apiClient.get('/challenges/community').then((r) => setCommunity(r.data))
+    // Elite je záměrně malý VIP klub (max 10 klientů, viz Landing.jsx/db.php gate 14) —
+    // tenhle drobný pozdrav na dashboardu je jediné místo, kde to klient v appce denně vidí.
+    apiClient.get('/subscriptions/me').then((r) => setIsElite(r.data.some((s) => s.status === 'active' && s.tier === 'Elite')))
   }, [user.id])
 
   async function toggleVisibility() {
@@ -38,8 +42,17 @@ export default function ClientDashboard() {
 
   return (
     <div>
+      {isElite && (
+        <div className="flex items-center gap-1.5 text-xs text-amber-400 uppercase tracking-wide mb-2">
+          <Crown size={13} /> {t('Elite VIP klub', 'Elite VIP club')}
+        </div>
+      )}
       <h1 className="text-3xl mb-2">{t(`Ahoj, ${vocative(firstName)}`, `Hi, ${firstName}`)}</h1>
-      <p className="text-neutral-400 mb-8">{t('Tvoje nadcházející tréninky.', 'Your upcoming workouts.')}</p>
+      <p className="text-neutral-400 mb-8">
+        {isElite
+          ? t('Jsi v užším Elite kruhu — díky, že jsi tady, David si tě fakt váží.', "You're in the inner Elite circle — thanks for being here, David really values having you.")
+          : t('Tvoje nadcházející tréninky.', 'Your upcoming workouts.')}
+      </p>
 
       {todayWorkout ? (
         <Link

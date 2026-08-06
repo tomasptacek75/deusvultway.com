@@ -3,7 +3,7 @@ import { Layers, Plus, Pencil, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucid
 import { apiClient } from '../../api/client'
 import { useLanguage } from '../../i18n/LanguageContext'
 
-const emptyTierForm = { name: '', name_en: '', price_kc: '', order_num: 0 }
+const emptyTierForm = { name: '', name_en: '', price_kc: '', order_num: 0, max_clients: '' }
 const emptyServiceForm = { name: '', name_en: '' }
 
 // Spravovaný katalog cenových tierů a jednotlivých služeb v nich (viz db.php gate 8) —
@@ -32,7 +32,7 @@ export default function Tiers() {
 
   async function createTier(e) {
     e.preventDefault()
-    await apiClient.post('/subscription-tiers', { ...tierForm, price_kc: tierForm.price_kc || null })
+    await apiClient.post('/subscription-tiers', { ...tierForm, price_kc: tierForm.price_kc || null, max_clients: tierForm.max_clients || null })
     setTierForm(emptyTierForm)
     setShowTierForm(false)
     load()
@@ -40,6 +40,11 @@ export default function Tiers() {
 
   async function toggleTierActive(tier) {
     await apiClient.put(`/subscription-tiers/${tier.id}`, { active: tier.active ? 0 : 1 })
+    load()
+  }
+
+  async function updateMaxClients(tier, value) {
+    await apiClient.put(`/subscription-tiers/${tier.id}`, { max_clients: value === '' ? null : Number(value) })
     load()
   }
 
@@ -106,6 +111,14 @@ export default function Tiers() {
             onChange={(e) => setTierForm({ ...tierForm, price_kc: e.target.value })}
             className="w-32 bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm"
           />
+          <input
+            type="number"
+            min="1"
+            placeholder={t('Max klientů (VIP limit, volitelné)', 'Max clients (VIP cap, optional)')}
+            value={tierForm.max_clients}
+            onChange={(e) => setTierForm({ ...tierForm, max_clients: e.target.value })}
+            className="w-56 bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm"
+          />
           <button type="submit" className="bg-blood-700 hover:bg-blood-600 transition-colors px-4 py-2 rounded-md text-sm font-medium">
             {t('Uložit', 'Save')}
           </button>
@@ -123,7 +136,21 @@ export default function Tiers() {
                 {expandedTier === tier.id ? <ChevronUp size={18} className="shrink-0" /> : <ChevronDown size={18} className="shrink-0" />}
                 <span className="font-semibold truncate">{t(tier.name, tier.name_en || tier.name)}</span>
                 {tier.price_kc != null && <span className="text-xs text-neutral-500 shrink-0">{tier.price_kc} Kč</span>}
+                {tier.max_clients != null && (
+                  <span className="text-xs text-amber-400 shrink-0">{tier.active_count ?? 0}/{tier.max_clients} {t('obsazeno', 'filled')}</span>
+                )}
               </button>
+              <label className="flex items-center gap-1.5 text-xs text-neutral-500 shrink-0 mr-2" title={t('VIP limit — kolik klientů může mít tenhle tier max najednou', 'VIP cap — max clients allowed in this tier at once')}>
+                {t('Limit', 'Cap')}
+                <input
+                  type="number"
+                  min="1"
+                  defaultValue={tier.max_clients ?? ''}
+                  onBlur={(e) => updateMaxClients(tier, e.target.value)}
+                  placeholder="—"
+                  className="w-14 bg-neutral-950 border border-neutral-800 rounded-md px-1.5 py-1 text-xs"
+                />
+              </label>
               <button onClick={() => toggleTierActive(tier)} className="text-neutral-600 hover:text-blood-500 shrink-0" title={tier.active ? t('Skrýt', 'Hide') : t('Odkrýt', 'Show')}>
                 {tier.active ? <Eye size={16} /> : <EyeOff size={16} />}
               </button>

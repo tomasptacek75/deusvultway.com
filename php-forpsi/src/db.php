@@ -313,14 +313,19 @@ function initSchema(PDO $pdo, array $config): void
     -- subscriptions.tier zůstává volný text kvůli zpětné kompatibilitě, tier_id je nový
     -- volitelný odkaz na tenhle katalog vedle něj, ne náhrada.
     CREATE TABLE IF NOT EXISTS subscription_tiers (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        trainer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        name       TEXT NOT NULL,
-        name_en    TEXT,
-        price_kc   INTEGER,
-        order_num  INTEGER NOT NULL DEFAULT 0,
-        active     INTEGER NOT NULL DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        trainer_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name        TEXT NOT NULL,
+        name_en     TEXT,
+        price_kc    INTEGER,
+        order_num   INTEGER NOT NULL DEFAULT 0,
+        active      INTEGER NOT NULL DEFAULT 1,
+        -- Volitelný strop počtu aktivních klientů v tomhle tieru (gate 14) — null = bez
+        -- limitu. Zavedeno pro Elite (VIP klub, max 10), aby na ně David reálně stíhal
+        -- osobní pozornost, kterou tier slibuje. Enforcement je jen měkké upozornění na
+        -- frontendu (viz findScheduleConflict vzor), ne tvrdý zákaz na backendu.
+        max_clients INTEGER,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_tier_trainer ON subscription_tiers(trainer_id);
 
@@ -726,6 +731,17 @@ function initSchema(PDO $pdo, array $config): void
     consolidateSubscriptionTiers($pdo);
 
     $pdo->exec('PRAGMA user_version = 13');
+    }
+
+    if ($schemaVersion < 14) {
+    // max_clients už je součástí CREATE TABLE subscription_tiers pro čerstvé instalace —
+    // tohle jen dohání databáze, kde tabulka vznikla dřív (produkce/test).
+    try { $pdo->exec("ALTER TABLE subscription_tiers ADD COLUMN max_clients INTEGER"); } catch (\Exception) {}
+    // David chce Elite pojmout jako malý VIP klub (max 10 klientů), ať na každého reálně
+    // stíhá osobní pozornost — viz Landing.jsx a TrainerDashboard.jsx tierBadgeClass.
+    $pdo->exec("UPDATE subscription_tiers SET max_clients=10 WHERE name='Elite'");
+
+    $pdo->exec('PRAGMA user_version = 14');
     }
 }
 
@@ -1188,14 +1204,16 @@ function seedSubscriptionTiers(PDO $pdo): void
         $serviceIds[$name] = $existing ? (int)$existing['id'] : insertRow($pdo, 'tier_services', ['trainer_id' => $trainerId, 'name' => $name, 'name_en' => $nameEn]);
     }
 
+    // max_clients: Elite je záměrně limitovaný (viz consolidateSubscriptionTiers() a "VIP klub"
+    // poznámka u ní) — Profi limit nemá (null).
     $tiers = [
-        ['Profi', 'Pro', 1500, 1, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku']],
-        ['Elite', 'Elite', 3000, 2, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku', 'Přímá zpětná vazba od Davida', 'Prioritní úpravy plánu', 'Konzultace 1x měsíčně']],
+        ['Profi', 'Pro', 1500, 1, null, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku']],
+        ['Elite', 'Elite', 3000, 2, 10, ['Individuální tréninkový plán', 'Video ukázky cviků s komentářem', 'Měsíční aktualizace plánu', 'Týdenní úpravy dle progresu', 'Výživové doporučení', 'Sledování cíle a pokroku', 'Přímá zpětná vazba od Davida', 'Prioritní úpravy plánu', 'Konzultace 1x měsíčně']],
     ];
-    foreach ($tiers as [$name, $nameEn, $priceKc, $orderNum, $tierServices]) {
+    foreach ($tiers as [$name, $nameEn, $priceKc, $orderNum, $maxClients, $tierServices]) {
         $existing = fetchOne($pdo, "SELECT id FROM subscription_tiers WHERE trainer_id=? AND name=?", [$trainerId, $name]);
         $tierId = $existing ? (int)$existing['id'] : insertRow($pdo, 'subscription_tiers', [
-            'trainer_id' => $trainerId, 'name' => $name, 'name_en' => $nameEn, 'price_kc' => $priceKc, 'order_num' => $orderNum,
+            'trainer_id' => $trainerId, 'name' => $name, 'name_en' => $nameEn, 'price_kc' => $priceKc, 'order_num' => $orderNum, 'max_clients' => $maxClients,
         ]);
         foreach ($tierServices as $serviceName) {
             $pdo->prepare("INSERT OR IGNORE INTO tier_service_map (tier_id, service_id) VALUES (?, ?)")->execute([$tierId, $serviceIds[$serviceName]]);

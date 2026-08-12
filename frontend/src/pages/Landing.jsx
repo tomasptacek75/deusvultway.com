@@ -44,12 +44,12 @@ export default function Landing() {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-10 bg-neutral-950/95 border-b border-neutral-800 pt-[env(safe-area-inset-top)]">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Dumbbell className="text-blood-600" size={26} />
-            <Wordmark className="h-5 sm:h-7" />
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <Dumbbell className="text-blood-600 shrink-0" size={22} />
+            <Wordmark className="h-4 sm:h-7" />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
             <LanguageToggle />
             <Link
               to="/login"

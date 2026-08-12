@@ -132,8 +132,11 @@ function WorkoutsTab({ clientId }) {
   const [expanded, setExpanded] = useState(null)
   const [showArchive, setShowArchive] = useState(false)
 
+  // Vrací promise z GET (ne void) — updateWhen/renameWorkout na dokončení čekají, aby se
+  // inline editor přepnul zpět na zobrazení až s čerstvými daty (viz stejná oprava v
+  // TrainerCalendar.jsx#reload).
   function load() {
-    apiClient.get('/workouts', { params: { client_id: clientId } }).then((r) => setWorkouts(r.data))
+    return apiClient.get('/workouts', { params: { client_id: clientId } }).then((r) => setWorkouts(r.data))
   }
 
   useEffect(() => {
@@ -166,7 +169,7 @@ function WorkoutsTab({ clientId }) {
 
   async function renameWorkout(id, title) {
     await apiClient.put(`/workouts/${id}`, { title })
-    load()
+    await load()
   }
 
   async function updateWhen(id, date, fields) {
@@ -181,7 +184,7 @@ function WorkoutsTab({ clientId }) {
       }
     }
     await apiClient.put(`/workouts/${id}`, fields)
-    load()
+    await load()
   }
 
   const today = new Date().toISOString().slice(0, 10)
@@ -286,6 +289,11 @@ function WorkoutTitle({ title, onSave }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(title)
 
+  async function confirm() {
+    await onSave(value)
+    setEditing(false)
+  }
+
   if (editing) {
     return (
       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -293,11 +301,11 @@ function WorkoutTitle({ title, onSave }) {
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (onSave(value), setEditing(false))}
+          onKeyDown={(e) => e.key === 'Enter' && confirm()}
           className="bg-neutral-950 border border-blood-600 rounded-md px-2 py-1 text-sm font-semibold"
         />
         <button
-          onClick={() => { onSave(value); setEditing(false) }}
+          onClick={confirm}
           className="text-blood-500 hover:text-blood-400"
         >
           <Check size={16} />
@@ -322,8 +330,22 @@ function WorkoutTitle({ title, onSave }) {
 function WorkoutWhen({ workout, onSave }) {
   const { t, lang } = useLanguage()
   const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [time, setTime] = useState(workout.time || '')
   const [location, setLocation] = useState(workout.location || '')
+
+  // Čeká na dokončení uložení, než se přepne zpět na zobrazení — jinak appka krátce po
+  // potvrzení ukazovala starou hodnotu z ještě nepřenačteného stavu (viz stejná oprava v
+  // TrainerCalendar.jsx#EditableTime).
+  async function confirm() {
+    setSaving(true)
+    try {
+      await onSave({ time: time || null, location: location || null })
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (editing) {
     return (
@@ -340,8 +362,9 @@ function WorkoutWhen({ workout, onSave }) {
           className="bg-neutral-950 border border-neutral-800 rounded-md px-1.5 py-0.5 text-xs w-32"
         />
         <button
-          onClick={() => { onSave({ time: time || null, location: location || null }); setEditing(false) }}
-          className="text-blood-500 hover:text-blood-400"
+          onClick={confirm}
+          disabled={saving}
+          className="text-blood-500 hover:text-blood-400 disabled:opacity-50"
         >
           <Check size={14} />
         </button>

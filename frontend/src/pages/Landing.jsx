@@ -43,7 +43,7 @@ export default function Landing() {
   const { t } = useLanguage()
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 font-retroserif">
+    <div className="min-h-screen bg-white text-neutral-900 font-retroserif pt-[env(safe-area-inset-top)]">
       <div className="max-w-5xl mx-auto sm:p-3">
         <div className="border-2 border-neutral-900 sm:border-[3px]">
 
@@ -62,7 +62,7 @@ export default function Landing() {
           {/* ---------- hero ---------- */}
           <section className="grid grid-cols-1 md:grid-cols-2 bg-neutral-900 text-white">
             <div className="flex flex-col justify-center px-5 sm:px-8 py-10 md:py-12 order-2 md:order-1">
-              <h1 className="font-retro uppercase leading-[.96] text-4xl sm:text-5xl [text-wrap:balance] mb-5">
+              <h1 className="font-retro uppercase leading-[1.15] text-4xl sm:text-5xl [text-wrap:balance] mb-5">
                 {t('Trénuj, jako by', 'Train like it')}<br />
                 {t('šlo ', 'means ')}
                 <span className="[-webkit-text-stroke:1.5px_white] [text-shadow:3px_3px_0_rgba(255,255,255,.22)]">
@@ -90,20 +90,11 @@ export default function Landing() {
                 className="absolute inset-0 w-full h-full object-cover opacity-90"
                 style={{ objectPosition: '50% 15%' }}
               />
-              <div className="absolute top-4 left-0 bg-white text-neutral-900 font-retro text-sm uppercase px-3.5 py-2 shadow-[4px_4px_0_rgba(0,0,0,.4)]">
-                {t('David', 'David')}
-                <span className="block text-[.56rem] tracking-[.18em] text-neutral-500 mt-0.5">
-                  {t('Silový trenér', 'Strength coach')}
-                </span>
-              </div>
               <blockquote className="absolute left-4 right-4 bottom-4 m-0 bg-black/75 border-l-[3px] border-white px-4 py-3.5 font-retroserif italic text-sm leading-snug">
                 {t(
                   '„Necvičím lidi, co to nemyslí vážně. Kdo se mnou začne, jde do toho naplno — nebo vůbec.“',
                   '“I don’t train people who don’t mean it. If you start with me, you go all in — or not at all.”'
                 )}
-                <cite className="block not-italic font-retro text-[.62rem] tracking-[.14em] uppercase text-white/70 mt-2">
-                  {t('— David', '— David')}
-                </cite>
               </blockquote>
             </div>
           </section>

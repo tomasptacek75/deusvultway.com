@@ -52,6 +52,13 @@ test.describe('Trenér — kalendář', () => {
       // Měníme jen minutu (06:00 → 06:15) — hodina zůstává mimo seedovanou sadu, takže
       // trénink nemůže "spadnout" do cizí skupinové lekce a kartu si pod rukama přeskupit.
       await card.locator('select').nth(1).selectOption('15')
+      // 06:15 zasahuje 60minutovým oknem do 07:00 (viz findScheduleConflict/SESSION_LENGTH_MIN)
+      // — s 23 naseedovanými klienty má "dnes" skoro jistě někdo trénink přesně v 07:00, takže
+      // se tu prakticky pokaždé objeví potvrzovací dialog kolize. Bez zachyceného page.on
+      // handleru ho Playwright bez varování zavře jako Zrušit (výchozí chování u
+      // neobslouženého window.confirm), a uložení tiše neproběhne — proto accept() předem,
+      // stejný vzor jako scheduling-conflict.spec.js.
+      page.once('dialog', (d) => d.accept())
       await card.getByRole('button').last().click() // ✓ potvrzení
 
       await expect(card).toContainText('06:15')

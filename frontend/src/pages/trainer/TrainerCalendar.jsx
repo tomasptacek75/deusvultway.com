@@ -64,8 +64,12 @@ export default function TrainerCalendar() {
     apiClient.get('/schedule', { params: { from, to } }).then((r) => setWorkouts(r.data))
   }
 
+  // Musí vracet promise ze skutečného GET, ne jen "spustit ho na pozadí" — volající kód (viz
+  // updateTime) na dokončení reloadu čeká, aby se editor přepnul zpět na zobrazení až s
+  // čerstvými daty (jinak krátce bliklo staré, viz EditableTime).
   function reload() {
-    if (range) apiClient.get('/schedule', { params: range }).then((r) => setWorkouts(r.data))
+    if (!range) return Promise.resolve()
+    return apiClient.get('/schedule', { params: range }).then((r) => setWorkouts(r.data))
   }
 
   async function updateTime(id, time) {
@@ -83,7 +87,7 @@ export default function TrainerCalendar() {
       }
     }
     await apiClient.put(`/workouts/${id}`, { time: time || null })
-    reload()
+    await reload()
   }
 
   const getStatus = useTodayScheduleStatus(workouts)
@@ -142,7 +146,7 @@ export default function TrainerCalendar() {
               )}
               <div className="min-w-0">
                 <div className="font-medium truncate flex items-center gap-2 flex-wrap">
-                  <EditableTime workout={w} onSave={(time) => w.members.forEach((m) => updateTime(m.id, time))} />
+                  <EditableTime workout={w} onSave={(time) => Promise.all(w.members.map((m) => updateTime(m.id, time)))} />
                   {isGroup ? (
                     <span className="truncate">
                       {w.members.map((m, i) => (
@@ -188,9 +192,24 @@ export default function TrainerCalendar() {
 function EditableTime({ workout, onSave }) {
   const { t } = useLanguage()
   const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [time, setTime] = useState(workout.time || '')
 
   function stop(e) { e.preventDefault(); e.stopPropagation() }
+
+  // Čeká na dokončení uložení (PUT + reload), než se přepne zpět na zobrazení — dřív se
+  // setEditing(false) volalo hned, takže krátce po potvrzení appka ukazovala starou hodnotu
+  // z ještě nepřenačteného workouts stavu (viditelné hlavně na pomalejší síti).
+  async function confirm(e) {
+    stop(e)
+    setSaving(true)
+    try {
+      await onSave(time)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (editing) {
     return (
@@ -202,8 +221,9 @@ function EditableTime({ workout, onSave }) {
           className="bg-neutral-950 border border-blood-600 rounded px-1.5 py-0.5 text-xs"
         />
         <button
-          onClick={(e) => { stop(e); onSave(time); setEditing(false) }}
-          className="text-blood-500 hover:text-blood-400"
+          onClick={confirm}
+          disabled={saving}
+          className="text-blood-500 hover:text-blood-400 disabled:opacity-50"
         >
           <Check size={13} />
         </button>

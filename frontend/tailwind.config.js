@@ -20,6 +20,10 @@ export default {
       fontFamily: {
         display: ['"Oswald"', 'sans-serif'],
         sans: ['"Inter"', 'sans-serif'],
+        // Retro poster faces — Landing.jsx redesign only, see index.css for the self-hosted
+        // @font-face rules. Not used anywhere else in the app.
+        retro: ['"Anton"', 'sans-serif'],
+        retroserif: ['"PTSerif"', 'Georgia', 'serif'],
       },
     },
   },

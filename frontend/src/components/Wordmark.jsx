@@ -30,13 +30,15 @@ const LETTERS = [
 
 const GAP_CLASS = { letter: 'ml-[3px]', word: 'ml-3' }
 
-export default function Wordmark({ className = 'h-7' }) {
+// mono: renders every letter in currentColor instead of hardcoding VULT to blood-600 — used by
+// the black-and-white retro Landing.jsx redesign, which doesn't use the brand red at all.
+export default function Wordmark({ className = 'h-7', mono = false }) {
   return (
     <span className={`inline-flex items-end shrink-0 ${className}`}>
       {LETTERS.map((letter) => (
         <span
           key={letter.id}
-          className={`inline-block ${letter.color || ''} ${GAP_CLASS[letter.gap] || ''}`}
+          className={`inline-block ${mono ? '' : letter.color || ''} ${GAP_CLASS[letter.gap] || ''}`}
           style={{
             height: `${letter.heightPct}%`,
             aspectRatio: letter.ratio,

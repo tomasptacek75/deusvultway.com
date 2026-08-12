@@ -2,6 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Retro poster faces — used only on the public Landing.jsx redesign (font-retro/font-retroserif
+   in tailwind.config.js), self-hosted so they work without a network request to a font CDN.
+   PT Serif ships as separate latin/latin-ext files (Google Fonts' own split) since Czech
+   diacritics (č, ř, š, ž…) live outside the plain latin range — both are declared per
+   weight/style so the browser fetches whichever the page actually needs. */
+@font-face {
+  font-family: 'Anton';
+  src: url('/fonts/Anton-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'PTSerif';
+  src: url('/fonts/PTSerif-Regular-latinext.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+  unicode-range: U+0100-024F, U+1E00-1EFF, U+2020, U+20A0-20AB;
+}
+@font-face {
+  font-family: 'PTSerif';
+  src: url('/fonts/PTSerif-Regular-latin.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'PTSerif';
+  src: url('/fonts/PTSerif-Bold-latinext.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: swap;
+  unicode-range: U+0100-024F, U+1E00-1EFF, U+2020, U+20A0-20AB;
+}
+@font-face {
+  font-family: 'PTSerif';
+  src: url('/fonts/PTSerif-Bold-latin.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'PTSerif';
+  src: url('/fonts/PTSerif-Italic-latinext.woff2') format('woff2');
+  font-weight: 400; font-style: italic; font-display: swap;
+  unicode-range: U+0100-024F, U+1E00-1EFF, U+2020, U+20A0-20AB;
+}
+@font-face {
+  font-family: 'PTSerif';
+  src: url('/fonts/PTSerif-Italic-latin.woff2') format('woff2');
+  font-weight: 400; font-style: italic; font-display: swap;
+}
+
 html, body, #root {
   height: 100%;
 }

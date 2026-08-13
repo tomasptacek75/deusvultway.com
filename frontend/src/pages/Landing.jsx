@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Send, CheckCircle2, Mail, Phone } from 'lucide-react'
 import { apiClient } from '../api/client'
@@ -41,6 +41,14 @@ const TIERS = [
 
 export default function Landing() {
   const { t } = useLanguage()
+  const actionVideoRef = useRef(null)
+
+  // autoPlay JSX prop na <video> nespolehlivě spouští přehrávání samo (běžná React kvirk —
+  // atribut nemusí být na DOM uzlu přítomný přesně v okamžiku připojení do stránky, kdy
+  // prohlížeč autoplay vyhodnocuje) — .play() voláno ručně po mountu je spolehlivější.
+  useEffect(() => {
+    actionVideoRef.current?.play().catch(() => {})
+  }, [])
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 font-retroserif pt-[env(safe-area-inset-top)]">
@@ -99,13 +107,19 @@ export default function Landing() {
             </div>
           </section>
 
-          {/* ---------- akční fotka ---------- */}
+          {/* ---------- akční video ---------- */}
           <section className="relative border-b-2 border-neutral-900 sm:border-b-[3px] h-40 sm:h-56 overflow-hidden bg-black">
-            <img
-              src="/david-action.jpg"
-              alt={t('David v posilovně při tréninku nohou', 'David training legs in the gym')}
+            <video
+              ref={actionVideoRef}
               className="absolute inset-0 w-full h-full object-cover"
               style={{ objectPosition: '50% 40%' }}
+              src="/david-action.mp4"
+              poster="/david-action.jpg"
+              autoPlay
+              loop
+              muted
+              playsInline
+              aria-label={t('David v posilovně při tréninku nohou', 'David training legs in the gym')}
             />
             <p className="absolute bottom-2 right-3 font-retro text-[.6rem] tracking-[.2em] uppercase text-white/70">
               {t('Trénink v akci', 'Training in action')}

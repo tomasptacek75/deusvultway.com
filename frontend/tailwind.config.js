@@ -4,17 +4,23 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Desaturated to grey for the app-wide retro pass (2026-08-13) — same relative
+        // lightness as the original red scale at every step (converted via perceptual
+        // luminance, 0.299R+0.587G+0.114B, not picked by eye), so every existing contrast
+        // pairing that was already tuned to work (e.g. white button text on bg-blood-700,
+        // text-blood-600 reading as a bright accent against neutral-950) keeps working
+        // identically — only the hue changes, not who's readable against what.
         blood: {
-          50: '#fef2f2',
-          100: '#fee2e2',
-          200: '#fecaca',
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-          700: '#b91c1c',
-          800: '#991b1b',
-          900: '#7f1d1d',
+          50: '#f6f6f6',
+          100: '#eaeaea',
+          200: '#dadada',
+          300: '#bfbfbf',
+          400: '#999999',
+          500: '#777777',
+          600: '#5c5c5c',
+          700: '#4b4b4b',
+          800: '#414141',
+          900: '#3a3a3a',
         },
       },
       fontFamily: {

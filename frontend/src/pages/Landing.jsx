@@ -70,7 +70,7 @@ export default function Landing() {
           {/* ---------- hero ---------- */}
           <section className="grid grid-cols-1 md:grid-cols-2 bg-neutral-900 text-white">
             <div className="flex flex-col justify-center px-5 sm:px-8 py-10 md:py-12 order-2 md:order-1">
-              <h1 className="font-retro uppercase leading-[1.4] text-4xl sm:text-5xl [text-wrap:balance] mb-5">
+              <h1 className="font-retro uppercase !leading-[1.5] text-4xl sm:text-5xl [text-wrap:balance] mb-5">
                 {t('Trénuj, jako by', 'Train like it')}<br />
                 {t('šlo ', 'means ')}
                 <span className="[-webkit-text-stroke:1.5px_white] [text-shadow:3px_3px_0_rgba(255,255,255,.22)]">

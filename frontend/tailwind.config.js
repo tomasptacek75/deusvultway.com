@@ -22,6 +22,31 @@ export default {
           800: '#414141',
           900: '#3a3a3a',
         },
+        // App-wide dark→light flip (2026-08-14, at the user's request — "zbytek webu ať je
+        // taky světlý jako Landing page"). `neutral` is the ONLY grey scale used anywhere in
+        // frontend/src (confirmed via grep — no gray-*/zinc-*/slate-* mixed in), and every
+        // page's dark theme comes from routing bg/text/border through neutral-50..neutral-950
+        // (body itself is bg-neutral-950 text-neutral-100 in index.css). So instead of rewriting
+        // bg-neutral-900/text-neutral-100/border-neutral-800 across 40+ files, this mirrors the
+        // blood-* trick: redefine the token scale itself. Here it's a straight MIRROR of
+        // Tailwind's own default neutral values (950↔50, 900↔100, 800↔200, ... 500 stays put) —
+        // not new colors, just the existing well-tested perceptual steps run in the opposite
+        // direction — so bg-neutral-950 (was near-black page bg) becomes near-white, and
+        // text-neutral-100 (was near-white body text) becomes near-black, while every mid-scale
+        // border/hover/muted-text pairing keeps the same relative contrast it always had.
+        neutral: {
+          50: '#0a0a0a',
+          100: '#171717',
+          200: '#262626',
+          300: '#404040',
+          400: '#525252',
+          500: '#737373',
+          600: '#a3a3a3',
+          700: '#d4d4d4',
+          800: '#e5e5e5',
+          900: '#f5f5f5',
+          950: '#fafafa',
+        },
       },
       fontFamily: {
         // App-wide retro reskin (2026-08-13, at the user's request) — display/sans now point

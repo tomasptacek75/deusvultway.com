@@ -47,6 +47,29 @@ export default {
           900: '#f5f5f5',
           950: '#fafafa',
         },
+        // Landing.jsx was deliberately left untouched by the neutral-* light-flip above (2026-08-14
+        // follow-up: "Poslední změna změnila i landing page, tu jsem chtěl nechat netknutou" — the
+        // last change also changed the landing page, which was meant to stay untouched). Landing.jsx
+        // was built (2026-08-07) using plain neutral-* classes for its borders/dark-hero-section/
+        // muted text, on the assumption neutral-900 is near-black and neutral-300/400/500 are mid
+        // greys — exactly Tailwind's stock values. Since `neutral` itself is now inverted app-wide,
+        // Landing.jsx's neutral-* usages were switched to this `ink` scale instead, which is just
+        // Tailwind's untouched default neutral palette copied verbatim under a new name — restores
+        // Landing.jsx pixel-for-pixel to how it looked before the app-wide flip, without needing a
+        // second/parallel neutral scale that would conflict with the rest of the app.
+        ink: {
+          50: '#fafafa',
+          100: '#f5f5f5',
+          200: '#e5e5e5',
+          300: '#d4d4d4',
+          400: '#a3a3a3',
+          500: '#737373',
+          600: '#525252',
+          700: '#404040',
+          800: '#262626',
+          900: '#171717',
+          950: '#0a0a0a',
+        },
       },
       fontFamily: {
         // App-wide retro reskin (2026-08-13, at the user's request) — display/sans now point

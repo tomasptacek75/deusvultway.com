@@ -51,24 +51,24 @@ export default function Landing() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 font-retroserif pt-[env(safe-area-inset-top)]">
+    <div className="min-h-screen bg-white text-ink-900 font-retroserif pt-[env(safe-area-inset-top)]">
       <div className="max-w-5xl mx-auto sm:p-3">
-        <div className="border-2 border-neutral-900 sm:border-[3px]">
+        <div className="border-2 border-ink-900 sm:border-[3px]">
 
-          <header className="flex items-center justify-between gap-2 border-b-2 border-neutral-900 sm:border-b-[3px] px-4 sm:px-6 py-3 sm:py-4">
+          <header className="flex items-center justify-between gap-2 border-b-2 border-ink-900 sm:border-b-[3px] px-4 sm:px-6 py-3 sm:py-4">
             <Link to="/" className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink">
               <Wordmark className="h-5 sm:h-8" mono />
             </Link>
             <div className="flex items-center gap-3 sm:gap-4 shrink-0 whitespace-nowrap">
               <LanguageToggle />
-              <Link to="/login" className="font-retro text-[.7rem] sm:text-xs tracking-[.1em] uppercase border-b-2 border-neutral-900 pb-0.5">
+              <Link to="/login" className="font-retro text-[.7rem] sm:text-xs tracking-[.1em] uppercase border-b-2 border-ink-900 pb-0.5">
                 {t('Přihlásit se', 'Log in')}
               </Link>
             </div>
           </header>
 
           {/* ---------- hero ---------- */}
-          <section className="grid grid-cols-1 md:grid-cols-2 bg-neutral-900 text-white">
+          <section className="grid grid-cols-1 md:grid-cols-2 bg-ink-900 text-white">
             <div className="flex flex-col justify-center px-5 sm:px-8 py-10 md:py-12 order-2 md:order-1">
               <h1 className="font-retro uppercase !leading-[1.5] text-4xl sm:text-5xl [text-wrap:balance] mb-5">
                 {t('Trénuj, jako by', 'Train like it')}<br />
@@ -85,7 +85,7 @@ export default function Landing() {
               </p>
               <a
                 href="#cenik"
-                className="self-start font-retro text-sm tracking-[.14em] uppercase bg-white text-neutral-900 border-2 border-white px-7 py-3 hover:bg-neutral-900 hover:text-white transition-colors"
+                className="self-start font-retro text-sm tracking-[.14em] uppercase bg-white text-ink-900 border-2 border-white px-7 py-3 hover:bg-ink-900 hover:text-white transition-colors"
               >
                 {t('Zobrazit plány', 'View plans')}
               </a>
@@ -108,7 +108,7 @@ export default function Landing() {
           </section>
 
           {/* ---------- akční video ---------- */}
-          <section className="relative border-b-2 border-neutral-900 sm:border-b-[3px] h-40 sm:h-64 md:h-80 lg:h-[28rem] overflow-hidden bg-black">
+          <section className="relative border-b-2 border-ink-900 sm:border-b-[3px] h-40 sm:h-64 md:h-80 lg:h-[28rem] overflow-hidden bg-black">
             <video
               ref={actionVideoRef}
               className="absolute inset-0 w-full h-full object-cover"
@@ -127,9 +127,9 @@ export default function Landing() {
           </section>
 
           {/* ---------- co dostaneš ---------- */}
-          <section className="border-b-2 border-neutral-900 sm:border-b-[3px] px-5 sm:px-8 py-9 sm:py-11">
+          <section className="border-b-2 border-ink-900 sm:border-b-[3px] px-5 sm:px-8 py-9 sm:py-11">
             <Kicker>{t('Co dostaneš', 'What you get')}</Kicker>
-            <div className="grid grid-cols-1 sm:grid-cols-3 border-t border-neutral-300">
+            <div className="grid grid-cols-1 sm:grid-cols-3 border-t border-ink-300">
               <Feature
                 title={t('Plán na míru', 'Plan tailored to you')}
                 text={t(
@@ -156,10 +156,10 @@ export default function Landing() {
           </section>
 
           {/* ---------- o trenérovi ---------- */}
-          <section className="border-b-2 border-neutral-900 sm:border-b-[3px] px-5 sm:px-8 py-9 sm:py-11">
+          <section className="border-b-2 border-ink-900 sm:border-b-[3px] px-5 sm:px-8 py-9 sm:py-11">
             <Kicker>{t('O trenérovi', 'About the coach')}</Kicker>
             <h2 className="font-retro text-2xl uppercase mb-1">David</h2>
-            <p className="font-retro text-[.62rem] tracking-[.2em] uppercase text-neutral-500 mb-5">
+            <p className="font-retro text-[.62rem] tracking-[.2em] uppercase text-ink-500 mb-5">
               {t('Silový trenér · 15+ let zkušeností', 'Strength coach · 15+ years of experience')}
             </p>
             <p className="max-w-[42em] first-letter:font-retro first-letter:text-5xl first-letter:leading-[.75] first-letter:float-left first-letter:pr-2 first-letter:pt-1">
@@ -169,17 +169,17 @@ export default function Landing() {
               )}
             </p>
             <div className="flex flex-wrap gap-x-5 gap-y-1 mt-5 font-retro text-xs tracking-[.06em]">
-              <a href={`mailto:${TRAINER_EMAIL}`} className="flex items-center gap-1.5 border-b border-neutral-300 hover:border-neutral-900 w-fit pb-0.5">
+              <a href={`mailto:${TRAINER_EMAIL}`} className="flex items-center gap-1.5 border-b border-ink-300 hover:border-ink-900 w-fit pb-0.5">
                 <Mail size={13} /> {TRAINER_EMAIL}
               </a>
-              <a href={`tel:${TRAINER_PHONE.replace(/\s/g, '')}`} className="flex items-center gap-1.5 border-b border-neutral-300 hover:border-neutral-900 w-fit pb-0.5">
+              <a href={`tel:${TRAINER_PHONE.replace(/\s/g, '')}`} className="flex items-center gap-1.5 border-b border-ink-300 hover:border-ink-900 w-fit pb-0.5">
                 <Phone size={13} /> {TRAINER_PHONE}
               </a>
             </div>
           </section>
 
           {/* ---------- ceník ---------- */}
-          <section id="cenik" className="border-b-2 border-neutral-900 sm:border-b-[3px] px-5 sm:px-8 py-9 sm:py-11">
+          <section id="cenik" className="border-b-2 border-ink-900 sm:border-b-[3px] px-5 sm:px-8 py-9 sm:py-11">
             <Kicker>{t('Ceník', 'Prices')}</Kicker>
             <h2 className="font-retro text-2xl sm:text-3xl uppercase [text-wrap:balance] mb-7">
               {t('Vyber si úroveň, která ti sedne', 'Pick the tier that suits you')}
@@ -189,12 +189,12 @@ export default function Landing() {
                 <div
                   key={tier.name}
                   className={`relative border-2 sm:border-[3px] p-6 sm:p-7 ${
-                    tier.elite ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-900'
+                    tier.elite ? 'bg-ink-900 text-white border-ink-900' : 'border-ink-900'
                   }`}
                 >
                   <span
                     className={`absolute -top-3 left-6 font-retro text-[.6rem] tracking-[.18em] uppercase px-2.5 py-1 border ${
-                      tier.elite ? 'bg-neutral-900 text-white border-white' : 'bg-white text-neutral-900 border-neutral-900'
+                      tier.elite ? 'bg-ink-900 text-white border-white' : 'bg-white text-ink-900 border-ink-900'
                     }`}
                   >
                     {t(tier.name, tier.nameEn)}
@@ -202,7 +202,7 @@ export default function Landing() {
                   <h3 className="font-retro text-2xl uppercase mt-2 mb-1">{t(tier.name, tier.nameEn)}</h3>
                   <p className="font-retro text-lg mb-4">
                     {t(tier.price, tier.priceEn)}{' '}
-                    <span className={`text-[.68rem] tracking-[.1em] ${tier.elite ? 'text-white/65' : 'text-neutral-500'}`}>
+                    <span className={`text-[.68rem] tracking-[.1em] ${tier.elite ? 'text-white/65' : 'text-ink-500'}`}>
                       / {t('měsíc', 'month')}
                     </span>
                   </p>
@@ -210,7 +210,7 @@ export default function Landing() {
                     {tier.features.map(([cs, en], i) => (
                       <li
                         key={cs}
-                        className={`flex gap-2 py-1.5 ${i > 0 ? (tier.elite ? 'border-t border-white/20' : 'border-t border-neutral-200') : ''}`}
+                        className={`flex gap-2 py-1.5 ${i > 0 ? (tier.elite ? 'border-t border-white/20' : 'border-t border-ink-200') : ''}`}
                       >
                         <span className="text-[.7em] opacity-70 mt-[.35em]">★</span> {t(cs, en)}
                       </li>
@@ -225,13 +225,13 @@ export default function Landing() {
           <section id="kontakt" className="px-5 sm:px-8 py-9 sm:py-11 text-center">
             <Kicker center>{t('Kontakt', 'Contact')}</Kicker>
             <h2 className="font-retro text-2xl sm:text-3xl uppercase mb-3">{t('Chceš začít?', 'Ready to start?')}</h2>
-            <p className="text-neutral-500 max-w-md mx-auto mb-7">
+            <p className="text-ink-500 max-w-md mx-auto mb-7">
               {t('Napiš Davidovi pár slov o sobě a domluvte si úvodní konzultaci.', 'Send David a few words about yourself and set up an initial consultation.')}
             </p>
             <ContactForm />
           </section>
 
-          <footer className="border-t-2 border-neutral-900 sm:border-t-[3px] px-5 py-5 text-center font-retro text-[.6rem] tracking-[.16em] uppercase text-neutral-400">
+          <footer className="border-t-2 border-ink-900 sm:border-t-[3px] px-5 py-5 text-center font-retro text-[.6rem] tracking-[.16em] uppercase text-ink-400">
             {t('Deus Vult Way — David trénuje od MMVIII', 'Deus Vult Way — David coaching since MMVIII')} · {t('Web zatím ve vývoji (POC), neveřejné', 'Site still in development (POC), not public yet')}
           </footer>
         </div>
@@ -242,19 +242,19 @@ export default function Landing() {
 
 function Kicker({ children, center }) {
   return (
-    <p className={`font-retro text-[.66rem] tracking-[.28em] uppercase text-neutral-500 flex items-center gap-3 mb-4 ${center ? 'justify-center' : ''}`}>
+    <p className={`font-retro text-[.66rem] tracking-[.28em] uppercase text-ink-500 flex items-center gap-3 mb-4 ${center ? 'justify-center' : ''}`}>
       {children}
-      <span className="flex-1 h-px bg-neutral-300 max-w-[8rem]" />
+      <span className="flex-1 h-px bg-ink-300 max-w-[8rem]" />
     </p>
   )
 }
 
 function Feature({ title, text, last }) {
   return (
-    <div className={`py-6 sm:py-0 sm:px-6 first:pt-0 first:sm:pl-0 border-t sm:border-t-0 first:border-t-0 border-neutral-200 ${last ? '' : 'sm:border-r border-neutral-200'}`}>
-      <div className="text-neutral-400 mb-2.5">★</div>
+    <div className={`py-6 sm:py-0 sm:px-6 first:pt-0 first:sm:pl-0 border-t sm:border-t-0 first:border-t-0 border-ink-200 ${last ? '' : 'sm:border-r border-ink-200'}`}>
+      <div className="text-ink-400 mb-2.5">★</div>
       <h3 className="font-retroserif font-bold text-lg mb-1.5">{title}</h3>
-      <p className="text-sm text-neutral-500">{text}</p>
+      <p className="text-sm text-ink-500">{text}</p>
     </div>
   )
 }
@@ -277,16 +277,16 @@ function ContactForm() {
 
   if (status === 'sent') {
     return (
-      <div className="border-2 border-neutral-900 p-8 flex flex-col items-center gap-3 max-w-md mx-auto">
+      <div className="border-2 border-ink-900 p-8 flex flex-col items-center gap-3 max-w-md mx-auto">
         <CheckCircle2 size={32} />
         <p className="font-medium">{t('Díky, zpráva je odeslaná.', 'Thanks, your message has been sent.')}</p>
-        <p className="text-sm text-neutral-500">{t('David se ti brzy ozve.', "David will get back to you soon.")}</p>
+        <p className="text-sm text-ink-500">{t('David se ti brzy ozve.', "David will get back to you soon.")}</p>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border-2 border-neutral-900 p-6 text-left space-y-3 max-w-md mx-auto">
+    <form onSubmit={handleSubmit} className="border-2 border-ink-900 p-6 text-left space-y-3 max-w-md mx-auto">
       {/* Honeypot — skryté pole, lidský návštěvník ho nevidí a nevyplní */}
       <input
         type="text"
@@ -301,7 +301,7 @@ function ContactForm() {
         placeholder={t('Jméno', 'Name')}
         value={form.name}
         onChange={(e) => setForm({ ...form, name: e.target.value })}
-        className="w-full border border-neutral-300 focus:border-neutral-900 outline-none px-3 py-2.5 text-sm"
+        className="w-full border border-ink-300 focus:border-ink-900 outline-none px-3 py-2.5 text-sm"
       />
       <input
         required
@@ -309,14 +309,14 @@ function ContactForm() {
         placeholder={t('E-mail', 'Email')}
         value={form.email}
         onChange={(e) => setForm({ ...form, email: e.target.value })}
-        className="w-full border border-neutral-300 focus:border-neutral-900 outline-none px-3 py-2.5 text-sm"
+        className="w-full border border-ink-300 focus:border-ink-900 outline-none px-3 py-2.5 text-sm"
       />
       <input
         type="tel"
         placeholder={t('Telefon (nepovinné)', 'Phone (optional)')}
         value={form.phone}
         onChange={(e) => setForm({ ...form, phone: e.target.value })}
-        className="w-full border border-neutral-300 focus:border-neutral-900 outline-none px-3 py-2.5 text-sm"
+        className="w-full border border-ink-300 focus:border-ink-900 outline-none px-3 py-2.5 text-sm"
       />
       <textarea
         required
@@ -324,7 +324,7 @@ function ContactForm() {
         rows={4}
         value={form.message}
         onChange={(e) => setForm({ ...form, message: e.target.value })}
-        className="w-full border border-neutral-300 focus:border-neutral-900 outline-none px-3 py-2.5 text-sm"
+        className="w-full border border-ink-300 focus:border-ink-900 outline-none px-3 py-2.5 text-sm"
       />
       {status === 'error' && (
         <p className="text-sm text-red-700">{t('Odeslání se nepovedlo, zkus to prosím znovu.', 'Sending failed, please try again.')}</p>
@@ -332,7 +332,7 @@ function ContactForm() {
       <button
         type="submit"
         disabled={status === 'sending'}
-        className="w-full flex items-center justify-center gap-2 font-retro text-sm tracking-[.1em] uppercase bg-neutral-900 text-white hover:bg-neutral-700 disabled:opacity-60 transition-colors px-6 py-3"
+        className="w-full flex items-center justify-center gap-2 font-retro text-sm tracking-[.1em] uppercase bg-ink-900 text-white hover:bg-ink-700 disabled:opacity-60 transition-colors px-6 py-3"
       >
         <Send size={16} /> {status === 'sending' ? t('Odesílám…', 'Sending…') : t('Odeslat zprávu', 'Send message')}
       </button>

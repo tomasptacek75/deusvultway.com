@@ -56,7 +56,7 @@ export default function Landing() {
         <div className="border-2 border-ink-900 sm:border-[3px]">
 
           <header className="flex items-center justify-between gap-2 border-b-2 border-ink-900 sm:border-b-[3px] px-4 sm:px-6 py-3 sm:py-4">
-            <Link to="/" className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink">
+            <Link to="/landing" className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink">
               <Wordmark className="h-5 sm:h-8" mono />
             </Link>
             <div className="flex items-center gap-3 sm:gap-4 shrink-0 whitespace-nowrap">

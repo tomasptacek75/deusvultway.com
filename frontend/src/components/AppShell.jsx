@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
-import { Dumbbell, LogOut, Menu, X } from 'lucide-react'
-import { getUser, logout, homePath } from '../api/client'
+import { LogOut, Menu, X } from 'lucide-react'
+import { getUser, logout } from '../api/client'
 import { useLanguage } from '../i18n/LanguageContext'
 import NotificationBell from './NotificationBell'
 import LanguageToggle from './LanguageToggle'
@@ -26,8 +26,7 @@ export default function AppShell({ links, showLanguageToggle = true, showNotific
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-neutral-800 bg-neutral-950/95 sticky top-0 z-10 pt-[env(safe-area-inset-top)]">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <Link to={homePath()} className="flex items-center gap-2 shrink-0">
-            <Dumbbell className="text-blood-600" size={22} />
+          <Link to="/landing" className="flex items-center gap-2 shrink-0">
             <Wordmark className="h-4 sm:h-6" />
           </Link>
 

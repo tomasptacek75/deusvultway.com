@@ -114,6 +114,11 @@ function App() {
         : isMujHost ? <Navigate to="/diary/login" replace />
         : <Landing />
       } />
+      {/* Unconditional alias to Landing — "/" redirects logged-in users straight to their
+          dashboard (so the PWA home-screen icon opens into the app), but the header wordmark
+          (AppShell/Login/Landing itself) always links here instead, so clicking it reliably
+          shows the marketing page regardless of auth state. */}
+      <Route path="/landing" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/diary/login" element={<DiaryLogin />} />
       <Route path="/diary/register" element={<DiaryRegister />} />
